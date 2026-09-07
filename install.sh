@@ -29,7 +29,7 @@ command -v ssh >/dev/null 2>&1 || {
 }
 
 # Paths (all user-scoped)
-DATA_DIR="$HOME/.ssh-tunnel-manager" # application data/config root
+DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/sshtm" # application configuration root
 
 # Detect OS/arch for service management and binary selection
 OS_NAME="$(uname -s)"

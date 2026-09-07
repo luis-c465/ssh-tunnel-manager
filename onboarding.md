@@ -60,12 +60,14 @@ Run `make clean` to remove `./bin`, `./dist`, and `coverage.out`.
 
 ## Configuration directory
 
+The default directory is `${XDG_CONFIG_HOME:-$HOME/.config}/sshtm`. On daemon startup, legacy `~/.ssh-tunnel-manager` data is copied to that directory when the target is empty; if both locations contain data, the XDG directory is used without merging them.
+
 Set `SSHTM_CONFIG_DIR` to choose the directory used by both the CLI and daemon:
 
 ```sh
 SSHTM_CONFIG_DIR=/path/to/config sshtm list
 ```
 
-The legacy `config-dir` environment variable remains supported for compatibility. `SSHTM_CONFIG_DIR` takes precedence.
+The legacy `config-dir` environment variable remains supported for compatibility. `SSHTM_CONFIG_DIR` takes precedence. Neither explicit override triggers legacy-directory relocation.
 
 `./install.sh` installs the user service and production binaries; it is separate from the local development build commands above.

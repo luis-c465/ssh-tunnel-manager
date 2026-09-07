@@ -18,7 +18,7 @@ cd ssh-tunnel-manager
 ./install.sh
 ```
 
-The install script installs `sshtm` and `sshtmd` under `~/.local/bin`, configuration under `~/.ssh-tunnel-manager`, and helper scripts under `~/.local/share/sshtm/scripts`. It also installs a systemd user service on Linux or a LaunchAgent on macOS.
+The install script installs `sshtm` and `sshtmd` under `~/.local/bin`, configuration under `${XDG_CONFIG_HOME:-~/.config}/sshtm`, and helper scripts under `~/.local/share/sshtm/scripts`. It also installs a systemd user service on Linux or a LaunchAgent on macOS.
 
 Ensure `~/.local/bin` is on your `PATH`.
 
@@ -79,13 +79,15 @@ sshtm [command]
 
 ## Configuration directory
 
+By default, configuration is stored in `${XDG_CONFIG_HOME:-$HOME/.config}/sshtm`. Existing `~/.ssh-tunnel-manager` data is copied there on the daemon's first startup, unless the target already contains data; in that case the target is used and the legacy directory is left untouched.
+
 Set `SSHTM_CONFIG_DIR` to use a different configuration directory:
 
 ```sh
 SSHTM_CONFIG_DIR=/path/to/config sshtm list
 ```
 
-The legacy `config-dir` environment variable remains supported for compatibility. `SSHTM_CONFIG_DIR` takes precedence when both are set.
+The legacy `config-dir` environment variable remains supported for compatibility. `SSHTM_CONFIG_DIR` takes precedence when both are set. Explicit directory overrides do not trigger legacy-directory relocation.
 
 Old flat JSON configurations are migrated automatically and retained. New machine and tunnel-profile data is stored in `machines/` and `profiles/` under the configuration directory.
 

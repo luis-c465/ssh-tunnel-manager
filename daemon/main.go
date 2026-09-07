@@ -27,6 +27,10 @@ func main() {
 	defer m.Shutdown()
 
 	configDir := config.ConfigurationDir()
+	if err := config.MigrateLegacyConfigDir(); err != nil {
+		log.Printf("failed to migrate legacy configuration: %v", err)
+		return
+	}
 	cf, err := configmanager.NewManagerWithError(configDir)
 	if err != nil {
 		log.Printf("failed to initialize configuration storage: %v", err)

@@ -28,4 +28,5 @@ case "$(uname -s)" in
 esac
 
 rm -f "$HOME/.local/bin/sshtmd" "$HOME/.local/bin/sshtm"
-printf 'Uninstalled sshtm. Configuration data in %s was preserved.\n' "$HOME/.ssh-tunnel-manager"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/sshtm"
+printf 'Uninstalled sshtm. Configuration data in %s was preserved.\n' "$CONFIG_DIR"
