@@ -13,9 +13,9 @@ import (
 )
 
 var DeleteConfigurationsCmd = &cobra.Command{
-	Use:     "delete <configuration name>",
-	Aliases: []string{"d", "del"},
-	Short:   "Delete an existing SSH tunnel configuration.",
+	Use:     "remove <profile name>",
+	Aliases: []string{"delete", "del", "d"},
+	Short:   "Remove a saved tunnel profile.",
 	Long: `
 Delete an existing SSH tunnel configuration by specifying its configuration name.
 

@@ -15,8 +15,8 @@ import (
 
 var ListConfigurationsCmd = &cobra.Command{
 	Use:     "list [search pattern]",
-	Aliases: []string{"l", "ls"},
-	Short:   "List all SSH tunnel configurations, optionally filtering by a search pattern. (You can use a pattern to only list the configurations that fuzzy match that pattern)",
+	Aliases: []string{"ls"},
+	Short:   "List saved tunnel profiles, optionally filtering by name",
 	Long: `
 List all SSH tunnel configurations, with optional fuzzy matching based on a provided search pattern.
 

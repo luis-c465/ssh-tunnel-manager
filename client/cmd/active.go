@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/besrabasant/ssh-tunnel-manager/client/formatters"
@@ -12,32 +11,66 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ListActiveSshTunnels = &cobra.Command{
-	Use:   "active",
-	Short: "List all active ssh tunnels",
-	Long: `
-List active SSH tunnels.
+// ListTunnelsCmd lists currently running tunnels.
+var ListTunnelsCmd = newListTunnelsCommand()
 
-This command queries the SSH Tunnel Manager daemon to retrieve a list of all currently active SSH tunnels. An active SSH tunnel is one that is currently established and facilitating data transmission. This is useful for monitoring or managing ongoing SSH connections, providing insights into which tunnels are active and potentially consuming system resources.
+func newListTunnelsCommand() *cobra.Command {
+	var machineName, profileName string
+	command := &cobra.Command{
+		Use:   "list",
+		Short: "List active tunnels",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			client, cleanup, err := lib.CreateDaemonServiceClient()
+			if err != nil {
+				return fmt.Errorf("connect to daemon: %w", err)
+			}
+			defer cleanup()
 
-Use this command to ensure that your SSH tunnels are running as expected, or to diagnose issues related to network connections established through SSH tunneling.	
-`,
-	Args:          cobra.NoArgs,
-	SilenceErrors: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		c, cleanup, err := lib.CreateDaemonServiceClient()
-		if err != nil {
-			return fmt.Errorf("connect to daemon: %w", err)
-		}
-		defer cleanup()
+			var machineID, profileID string
+			if machineName != "" {
+				machine, err := findMachine(cmd.Context(), client, machineName)
+				if err != nil {
+					return err
+				}
+				machineID = machine.GetId()
+			}
+			if profileName != "" {
+				profile, err := findTunnelProfile(cmd.Context(), client, profileName)
+				if err != nil {
+					return err
+				}
+				profileID = profile.GetId()
+			}
 
-		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
-		defer cancel()
-		r, err := c.ListActiveTunnels(ctx, &rpc.ListActiveTunnelsRequest{})
-		if err != nil {
-			return fmt.Errorf("list active tunnels: %w", err)
-		}
-		fmt.Print(formatters.NewActiveTunnelsFormatter(os.Stdout).Format(r))
-		return nil
-	},
+			ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+			defer cancel()
+			response, err := client.ListActiveTunnels(ctx, &rpc.ListActiveTunnelsRequest{})
+			if err != nil {
+				return fmt.Errorf("list active tunnels: %w", err)
+			}
+			if response == nil {
+				return fmt.Errorf("list active tunnels: empty response")
+			}
+			if machineID != "" || profileID != "" {
+				filtered := make([]*rpc.ActiveTunnel, 0, len(response.GetTunnels()))
+				for _, tunnel := range response.GetTunnels() {
+					if tunnel != nil && (machineID == "" || tunnel.GetMachineId() == machineID) && (profileID == "" || tunnel.GetProfileId() == profileID) {
+						filtered = append(filtered, tunnel)
+					}
+				}
+				response.Tunnels = filtered
+				if len(filtered) == 0 {
+					response.Result = "No matching active tunnels.\n"
+				} else {
+					response.Result = ""
+				}
+			}
+			fmt.Fprint(cmd.OutOrStdout(), formatters.NewActiveTunnelsFormatter(cmd.OutOrStdout()).Format(response))
+			return nil
+		},
+	}
+	command.Flags().StringVar(&machineName, "machine", "", "Only tunnels through this machine")
+	command.Flags().StringVar(&profileName, "profile", "", "Only tunnels started from this profile")
+	return command
 }

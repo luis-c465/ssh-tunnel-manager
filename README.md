@@ -46,14 +46,14 @@ sudo dpkg -i ../sshtm_1.1.5-1_amd64.deb
 
 ```sh
 sshtm machine add my_server --server example.com --user alice --key-file ~/.ssh/id_ed25519
-sshtm add
+sshtm start my_server 5432 --local-port 15432
 sshtm list
-sshtm tunnel my_configuration
-sshtm active
-sshtm kill my_configuration
+sshtm stop 15432
 ```
 
-A machine stores reusable SSH connection details. A tunnel profile stores a port-forwarding configuration and references a machine. Create a machine first; `sshtm add` creates a tunnel profile and prompts you to select an existing machine.
+`sshtm start <machine> <remote-port>` starts a temporary tunnel through a saved machine. It forwards to `localhost` on that machine and automatically selects a local port. Use `host:port` for another destination, for example `sshtm start my_server db.internal:5432`, or pass `--local-port` to choose the local port. Temporary tunnels are not restored after a daemon restart.
+
+A machine stores reusable SSH connection details. A tunnel profile stores a reusable port-forwarding configuration and references a machine. Start one with `sshtm start <profile>`. Manage saved definitions with `sshtm machine` and `sshtm profile`.
 
 ## Commands
 
@@ -63,17 +63,14 @@ sshtm [command]
 
 | Command | Aliases | Description |
 | --- | --- | --- |
-| `list [search pattern]` | `ls`, `l` | List saved tunnel profiles. |
-| `add` | `a` | Add a tunnel profile interactively. |
-| `edit` | `e` | Edit a tunnel profile. |
-| `delete` | `del`, `d` | Delete a tunnel profile. |
-| `machine list` | | List SSH machines. |
-| `machine add <name> --server <address> --user <user> --key-file <path>` | | Add an SSH machine. |
-| `machine edit <name>` | | Edit an SSH machine. |
-| `machine delete <name>` | | Delete an SSH machine. |
-| `tunnel <configuration name> [local port]` | `t` | Start a saved tunnel. |
-| `active` | | List active tunnels. |
-| `kill <configuration name\|local port>` | `k`, `terminate` | Terminate an active tunnel. |
+| `start <profile>` | | Start a saved tunnel profile. |
+| `start <machine> <remote-port\|remote-host:remote-port>` | | Start a temporary tunnel through a machine. |
+| `list` | | List active tunnels. |
+| `list --machine <name>` | | List active tunnels through a machine. |
+| `list --profile <name>` | | List active tunnels started from a profile. |
+| `stop <connection-name\|local-port>` | `kill`, `terminate` | Stop an active tunnel. |
+| `machine ...` | | Manage SSH machines. |
+| `profile ...` | | Manage saved tunnel profiles. |
 | `completion` | | Generate shell completions. |
 | `version` | | Print the version. |
 

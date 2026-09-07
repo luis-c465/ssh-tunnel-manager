@@ -8,18 +8,12 @@ import (
 )
 
 func main() {
-	cmd.SshtmCmd.AddCommand(cmd.AddConfigurationsCmd)
-	cmd.SshtmCmd.AddCommand(cmd.ListConfigurationsCmd)
-	cmd.SshtmCmd.AddCommand(cmd.EditConfigurationsCmd)
-	cmd.SshtmCmd.AddCommand(cmd.DeleteConfigurationsCmd)
+	cmd.SshtmCmd.AddCommand(cmd.StartTunnelCmd)
+	cmd.SshtmCmd.AddCommand(cmd.ListTunnelsCmd)
+	cmd.SshtmCmd.AddCommand(cmd.StopTunnelCmd)
 	cmd.SshtmCmd.AddCommand(cmd.MachineCmd)
-
-	cmd.SshtmCmd.AddCommand(cmd.StartSshTunnelCmd)
-	cmd.SshtmCmd.AddCommand(cmd.ListActiveSshTunnels)
-	cmd.SshtmCmd.AddCommand(cmd.KillSshTunnelCmd)
-	cmd.SshtmCmd.AddCommand(cmd.HelpCmd)
+	cmd.SshtmCmd.AddCommand(cmd.ProfileCmd)
 	cmd.SshtmCmd.Long = cmd.HelpCmd.Long
-
 	cmd.SshtmCmd.AddCommand(cmd.VersionCmd)
 
 	if err := cmd.SshtmCmd.Execute(); err != nil {

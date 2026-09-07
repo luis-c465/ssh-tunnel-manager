@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -13,36 +12,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var KillSshTunnelCmd = &cobra.Command{
-	Use:     "kill <configuration name or local port>",
-	Aliases: []string{"k", "terminate"},
-	Short:   "Terminate an active SSH tunnel.",
-	Long: `
-Terminate an active SSH tunnel either by specifying its configuration name or the local port it uses.
-
-This command allows you to forcefully close an active SSH tunnel. You can specify the tunnel by its configuration name or the local port number that the tunnel uses. This is particularly useful for managing resources or ending tunnels that are no longer required, are malfunctioning, or for security purposes.
-
-The command requires either a configuration name or a local port number as an argument. If neither is provided, the command will prompt you to enter one of them. Ensure you correctly identify the tunnel to avoid accidentally terminating the wrong connection.
-
-Example Usage:
-- sshtm kill my_configuration
-- sshtm kill 8080
-- sshtm terminate my_configuration
-- sshtm terminate 8080
-`,
-	Args:          cobra.ExactArgs(1),
-	SilenceErrors: true,
+// StopTunnelCmd stops a running tunnel by connection name or local port.
+var StopTunnelCmd = &cobra.Command{
+	Use:     "stop <connection-name-or-local-port>",
+	Aliases: []string{"kill", "terminate"},
+	Short:   "Stop an active tunnel",
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		tunnelIdentifier := args[0]
-		var localPort int
-
-		localPortInt, err := strconv.Atoi(tunnelIdentifier)
-		if err == nil {
-			tunnelIdentifier = ""
-			localPort = localPortInt
+		identifier := args[0]
+		localPort := 0
+		if port, err := strconv.Atoi(identifier); err == nil {
+			identifier = ""
+			localPort = port
 		}
 
-		c, cleanup, err := lib.CreateDaemonServiceClient()
+		client, cleanup, err := lib.CreateDaemonServiceClient()
 		if err != nil {
 			return fmt.Errorf("connect to daemon: %w", err)
 		}
@@ -50,19 +34,14 @@ Example Usage:
 
 		ctx, cancel := context.WithTimeout(cmd.Context(), 20*time.Second)
 		defer cancel()
-
-		r, err := c.KillTunnel(ctx, &rpc.KillTunnelRequest{ConfigName: tunnelIdentifier, LocalPort: int32(localPort)})
+		response, err := client.KillTunnel(ctx, &rpc.KillTunnelRequest{ConfigName: identifier, LocalPort: int32(localPort)})
 		if err != nil {
-			return fmt.Errorf("kill tunnel: %w", err)
+			return fmt.Errorf("stop tunnel: %w", err)
 		}
-		if r.GetStatus() == rpc.ResponseStatus_Error {
-			if r.GetMessage() != "" {
-				return fmt.Errorf("kill tunnel: %s", r.GetMessage())
-			}
-			return fmt.Errorf("kill tunnel failed: %s", r.GetResult())
+		if response.GetStatus() == rpc.ResponseStatus_Error {
+			return responseError("stop tunnel", response.GetMessage())
 		}
-
-		fmt.Print(formatters.NewMutationFormatter(os.Stdout).Format(formatters.MutationFromKill(r)))
+		fmt.Fprint(cmd.OutOrStdout(), formatters.NewMutationFormatter(cmd.OutOrStdout()).Format(formatters.MutationFromKill(response)))
 		return nil
 	},
 }
