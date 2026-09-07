@@ -4,10 +4,11 @@ SSH Tunnel Manager provides a CLI and background daemon for saving, starting, li
 
 ## Requirements
 
-- Go 1.25 or later for source builds
+- Go 1.26 or later for source builds
 - Git
+- OpenSSH (`ssh`)
 - A populated `~/.ssh/known_hosts` entry for each SSH server
-- Protocol Buffers compiler 35.0 for protobuf development
+- Protocol Buffers compiler 36.1 for protobuf development
 
 ## Installation
 

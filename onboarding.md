@@ -17,7 +17,7 @@ Start with `rpc/daemon.proto` for the client-daemon API, `daemon/tasks/` for dae
 
 ## Development setup
 
-Requires Go 1.25+, Git, and Protocol Buffers compiler 35.0. Install the pinned Go protobuf generators once:
+Requires Go 1.26+, Git, and Protocol Buffers compiler 36.1. Install the pinned Go protobuf generators once:
 
 ```sh
 make proto-tools

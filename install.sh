@@ -7,8 +7,24 @@ log_step() {
 
 log_step "Starting installation"
 
+REQUIRED_GO_VERSION="1.26"
+
 command -v go >/dev/null 2>&1 || {
-	echo "Go is required to build sshtm" >&2
+	echo "Go ${REQUIRED_GO_VERSION} or newer is required to build sshtm" >&2
+	exit 1
+}
+
+GO_VERSION="$(go env GOVERSION | sed -E 's/^go([0-9]+\.[0-9]+).*/\1/')"
+if ! awk -v installed="$GO_VERSION" -v required="$REQUIRED_GO_VERSION" 'BEGIN {
+	split(installed, i, "."); split(required, r, ".");
+	exit (i[1] > r[1] || (i[1] == r[1] && i[2] >= r[2])) ? 0 : 1
+}'; then
+	echo "Go ${REQUIRED_GO_VERSION} or newer is required (found ${GO_VERSION})" >&2
+	exit 1
+fi
+
+command -v ssh >/dev/null 2>&1 || {
+	echo "OpenSSH (ssh) is required to run sshtm" >&2
 	exit 1
 }
 

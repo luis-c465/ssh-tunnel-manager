@@ -52,18 +52,27 @@ jobs:
           ref: ${{ env.TAG_NAME }}
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
-      - name: Download Go modules
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: "36.1"
+
+      - name: Download and verify Go modules
         run: |
-          make download_deps
+          make download-deps
+          go mod verify
+
+      - name: Install protobuf generators
+        run: make proto-tools
 
       - name: Verify release source
         run: |
           make vet
           make test-race
+          make proto-check
 
       - name: Build release binaries with tag version
         run: |

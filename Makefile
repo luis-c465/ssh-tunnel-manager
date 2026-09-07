@@ -7,11 +7,11 @@ export GOPROXY
 VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null | sed "s/^v//")
 LDFLAGS := $(if $(VERSION),-ldflags "-X github.com/besrabasant/ssh-tunnel-manager/config.AppVersion=$(VERSION)")
 PROTOC ?= protoc
-PROTOC_VERSION := 35.0
+PROTOC_VERSION := 36.1
 PROTO_FILE := rpc/daemon.proto
 PROTO_GEN_FILES := rpc/daemon.pb.go rpc/daemon_grpc.pb.go
-PROTOC_GEN_GO_VERSION := v1.36.11
-PROTOC_GEN_GO_GRPC_VERSION := v1.2.0
+PROTOC_GEN_GO_VERSION := v1.36.12
+PROTOC_GEN_GO_GRPC_VERSION := v1.6.2
 GOBIN := $(shell $(GO_CMD) env GOPATH)/bin
 GO_FILES := $(shell find . -name '*.go' -not -path './vendor/*')
 
