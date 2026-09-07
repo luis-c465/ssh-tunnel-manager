@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/besrabasant/ssh-tunnel-manager/config"
 	"github.com/besrabasant/ssh-tunnel-manager/pkg/configmanager"
@@ -15,46 +17,71 @@ import (
 	"google.golang.org/grpc"
 )
 
+const gracefulStopTimeout = 10 * time.Second
+
 func main() {
-	lis, err := net.Listen("tcp", ":"+config.Port)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	m := tunnelmanager.NewTunnelManager()
+	defer m.Shutdown()
+
+	configDir := config.ConfigurationDir()
+	cf, err := configmanager.NewManagerWithError(configDir)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Printf("failed to initialize configuration storage: %v", err)
+		return
 	}
+	svc := tunnelmanager.NewTunnelService(m, cf, configDir)
+
+	lis, err := net.Listen("tcp", config.Address)
+	if err != nil {
+		log.Printf("failed to listen on %s: %v", config.Address, err)
+		return
+	}
+	defer lis.Close()
 
 	s := grpc.NewServer()
+	rpc.RegisterDaemonServiceServer(s, &server{service: svc})
 
-	// Initialize components
-	m := tunnelmanager.NewTunnelManager()
-	cf := configmanager.NewManager(config.DefaultConfigDir)
-	svc := tunnelmanager.NewTunnelService(m, cf, config.DefaultConfigDir)
-
-	rpServer := &server{service: svc}
-	rpc.RegisterDaemonServiceServer(s, rpServer)
-
-	// restore tunnels that were active before restart
 	if err := svc.RestoreTunnels(context.Background()); err != nil {
 		log.Printf("failed to restore tunnels: %v", err)
 	}
 
-	// handle shutdown signals and persist tunnels
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	serveErr := make(chan error, 1)
 	go func() {
-		<-c
-		if err := svc.PersistTunnels(); err != nil {
-			log.Printf("failed to persist tunnels during shutdown: %v", err)
-		}
-		os.Exit(0)
+		serveErr <- s.Serve(lis)
 	}()
 
 	log.Printf("server listening at %v", lis.Addr())
 
-	if err := s.Serve(lis); err != nil {
-		if err := svc.PersistTunnels(); err != nil {
-			log.Printf("failed to persist tunnels during error: %v", err)
+	select {
+	case <-ctx.Done():
+		log.Printf("shutting down daemon: %v", ctx.Err())
+	case err := <-serveErr:
+		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Printf("server stopped unexpectedly: %v", err)
 		}
-		log.Fatalf("failed to serve: %v", err)
+	}
+
+	gracefulStop(s)
+	if err := svc.PersistTunnels(); err != nil {
+		log.Printf("failed to persist tunnels during shutdown: %v", err)
 	}
 }
 
-// remove unused functions
+func gracefulStop(s *grpc.Server) {
+	done := make(chan struct{})
+	go func() {
+		s.GracefulStop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(gracefulStopTimeout):
+		log.Printf("graceful shutdown timed out; forcing server stop")
+		s.Stop()
+		<-done
+	}
+}

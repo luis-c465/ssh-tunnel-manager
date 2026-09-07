@@ -2,7 +2,9 @@ package tunnelmanager
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -21,7 +23,7 @@ type ActiveTunnel struct {
 func (m *tunnelManager) SaveActiveTunnels(path string) error {
 	tunnels := make([]ActiveTunnel, 0)
 	savedAt := time.Now().UTC().Format(time.RFC3339)
-	m.Mutex.Lock()
+	m.Mutex.RLock()
 	for port, ci := range m.Connections {
 		tunnels = append(tunnels, ActiveTunnel{
 			ConfigName: ci.Config.Name,
@@ -33,19 +35,42 @@ func (m *tunnelManager) SaveActiveTunnels(path string) error {
 			SavedAt:    savedAt,
 		})
 	}
-	m.Mutex.Unlock()
+	m.Mutex.RUnlock()
 
 	if len(tunnels) == 0 {
-		// remove file if no active tunnels
-		os.Remove(path)
+		// Removing a missing persistence file is already the desired state.
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
 		return nil
 	}
 
 	data, err := json.MarshalIndent(tunnels, "", " ")
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal active tunnels: %w", err)
 	}
-	return os.WriteFile(path, data, 0644)
+
+	tempFile, err := os.CreateTemp(filepath.Dir(path), ".active-tunnels-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create active tunnels temp file: %w", err)
+	}
+	tempName := tempFile.Name()
+	defer os.Remove(tempName)
+	if err := tempFile.Chmod(0600); err != nil {
+		tempFile.Close()
+		return fmt.Errorf("set active tunnels permissions: %w", err)
+	}
+	if _, err := tempFile.Write(data); err != nil {
+		tempFile.Close()
+		return fmt.Errorf("write active tunnels temp file: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("close active tunnels temp file: %w", err)
+	}
+	if err := os.Rename(tempName, path); err != nil {
+		return fmt.Errorf("replace active tunnels file %q: %w", path, err)
+	}
+	return nil
 }
 
 // LoadActiveTunnels reads persisted tunnels from the given file.

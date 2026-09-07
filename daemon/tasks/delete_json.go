@@ -17,7 +17,7 @@ func DeleteConfigurationJSON(ctx context.Context, req *pb.DeleteConfigurationReq
 	}
 
 	// Block delete if active connection exists
-	connections := service.GetManager().GetConnections()
+	connections := service.GetManager().ConnectionsSnapshot()
 	var port int = -1
 	for p, ci := range connections {
 		if ci.Config.Name == req.Name {
@@ -33,9 +33,9 @@ func DeleteConfigurationJSON(ctx context.Context, req *pb.DeleteConfigurationReq
 		}, nil
 	}
 
-	dir, err := utils.ResolveDir(config.DefaultConfigDir)
+	dir, err := utils.ResolveDir(config.ConfigurationDir())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve config directory: %w", err)
 	}
 	if err := configmanager.NewManager(dir).RemoveConfiguration(req.Name); err != nil {
 		return &pb.MutationResponse{

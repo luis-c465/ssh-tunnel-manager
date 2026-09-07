@@ -30,19 +30,11 @@ Example Usage:
 - sshtm terminate my_configuration
 - sshtm terminate 8080
 `,
-	Args: cobra.MinimumNArgs(0),
-	Run: func(cmd *cobra.Command, args []string) {
-		tunnelIdentifier := ""
+	Args:          cobra.ExactArgs(1),
+	SilenceErrors: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		tunnelIdentifier := args[0]
 		var localPort int
-
-		if len(args) == 0 {
-			fmt.Println("\n<configuration name> or <local port> needed but not provided")
-			return
-		}
-
-		if len(args) > 0 {
-			tunnelIdentifier = args[0]
-		}
 
 		localPortInt, err := strconv.Atoi(tunnelIdentifier)
 		if err == nil {
@@ -52,20 +44,25 @@ Example Usage:
 
 		c, cleanup, err := lib.CreateDaemonServiceClient()
 		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
+			return fmt.Errorf("connect to daemon: %w", err)
 		}
 		defer cleanup()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := context.WithTimeout(cmd.Context(), 20*time.Second)
 		defer cancel()
 
 		r, err := c.KillTunnel(ctx, &rpc.KillTunnelRequest{ConfigName: tunnelIdentifier, LocalPort: int32(localPort)})
 		if err != nil {
-			fmt.Printf("could not execute command: %v", err)
-			return
+			return fmt.Errorf("kill tunnel: %w", err)
+		}
+		if r.GetStatus() == rpc.ResponseStatus_Error {
+			if r.GetMessage() != "" {
+				return fmt.Errorf("kill tunnel: %s", r.GetMessage())
+			}
+			return fmt.Errorf("kill tunnel failed: %s", r.GetResult())
 		}
 
 		fmt.Print(formatters.NewMutationFormatter(os.Stdout).Format(formatters.MutationFromKill(r)))
+		return nil
 	},
 }

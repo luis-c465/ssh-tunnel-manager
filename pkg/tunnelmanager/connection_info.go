@@ -9,17 +9,19 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// SSH Connection info
+// ConnectionInfo contains the resources owned by one tunnel.
 type ConnectionInfo struct {
-	Client      *ssh.Client         // Pointer to an ssh.Client which manages the SSH connection
-	Listener    net.Listener        // Network listener for the local side of the SSH tunnel
-	LocalAddr   string              // Local address where the tunnel's listener is bound
-	RemoteAddr  string              // Remote address to which the tunnel connects
-	Connections []net.Conn          // Slice of net.Conn representing active connections over this tunnel
-	Config      configmanager.Entry // Configuration entry, assuming this is a struct from the 'configmanager' package
-	Cancel      func()              // Function to call to cleanly shutdown or cancel the tunnel/connection
-	clientMu    sync.RWMutex
-	reconnectMu sync.Mutex
+	Client        *ssh.Client
+	Listener      net.Listener
+	LocalAddr     string
+	RemoteAddr    string
+	Connections   []net.Conn
+	Config        configmanager.Entry
+	Cancel        func()
+	clientMu      sync.RWMutex
+	listenerMu    sync.RWMutex
+	connectionsMu sync.Mutex
+	reconnectMu   sync.Mutex
 }
 
 func (c *ConnectionInfo) getClient() *ssh.Client {
@@ -28,23 +30,43 @@ func (c *ConnectionInfo) getClient() *ssh.Client {
 	return c.Client
 }
 
-// replaceClient swaps the SSH client without racing with tunnel goroutines
-// that are using the current client. The old client is closed after the swap
-// so connections that survived the network transition cannot linger.
 func (c *ConnectionInfo) replaceClient(client *ssh.Client) {
 	c.clientMu.Lock()
 	old := c.Client
 	c.Client = client
 	c.clientMu.Unlock()
-
 	if old != nil && old != client {
 		_ = old.Close()
 	}
 }
 
-// Add new connection
+func (c *ConnectionInfo) setListener(listener net.Listener) {
+	c.listenerMu.Lock()
+	c.Listener = listener
+	c.listenerMu.Unlock()
+}
+
+func (c *ConnectionInfo) getListener() net.Listener {
+	c.listenerMu.RLock()
+	defer c.listenerMu.RUnlock()
+	return c.Listener
+}
+
 func (c *ConnectionInfo) AddConnection(conn net.Conn) {
+	c.connectionsMu.Lock()
 	c.Connections = append(c.Connections, conn)
+	c.connectionsMu.Unlock()
+}
+
+func (c *ConnectionInfo) RemoveConnection(conn net.Conn) {
+	c.connectionsMu.Lock()
+	defer c.connectionsMu.Unlock()
+	for i, active := range c.Connections {
+		if active == conn {
+			c.Connections = append(c.Connections[:i], c.Connections[i+1:]...)
+			return
+		}
+	}
 }
 
 func (c *ConnectionInfo) StopClient() {
@@ -52,7 +74,6 @@ func (c *ConnectionInfo) StopClient() {
 	client := c.Client
 	c.Client = nil
 	c.clientMu.Unlock()
-
 	if client != nil {
 		if err := client.Close(); err != nil {
 			fmt.Printf("Error closing SSH client: %v\n", err)
@@ -61,30 +82,34 @@ func (c *ConnectionInfo) StopClient() {
 }
 
 func (c *ConnectionInfo) StopListeners() {
-	if c.Listener != nil {
-		connListener := c.Listener
-		if err := connListener.Close(); err != nil {
+	c.listenerMu.Lock()
+	listener := c.Listener
+	c.Listener = nil
+	c.listenerMu.Unlock()
+	if listener != nil {
+		if err := listener.Close(); err != nil {
 			fmt.Println("Error closing listener:", err)
 		}
 	}
 }
 
 func (c *ConnectionInfo) KillAllConnections() {
-	for _, conn := range c.Connections {
+	c.connectionsMu.Lock()
+	connections := c.Connections
+	c.Connections = nil
+	c.connectionsMu.Unlock()
+	for _, conn := range connections {
 		if err := conn.Close(); err != nil {
 			fmt.Println("Failed to close connection:", err)
 		}
 	}
-	c.Connections = nil // Reset the slice to clear references and help with garbage collection
 }
 
-// Method to clear all connections safely and effectively
 func (c *ConnectionInfo) ClearConnection() {
 	if c.Cancel != nil {
 		c.Cancel()
 	}
-	c.StopClient()         // Ensures all connections are closed first
-	c.StopListeners()      // Ensures all connections are closed first
-	c.KillAllConnections() // Ensures all connections are closed first
-	c.Connections = nil    // Clears the slice completely to release resources
+	c.StopClient()
+	c.StopListeners()
+	c.KillAllConnections()
 }

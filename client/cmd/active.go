@@ -22,22 +22,22 @@ This command queries the SSH Tunnel Manager daemon to retrieve a list of all cur
 
 Use this command to ensure that your SSH tunnels are running as expected, or to diagnose issues related to network connections established through SSH tunneling.	
 `,
-	Args: cobra.MinimumNArgs(0),
-	Run: func(cmd *cobra.Command, args []string) {
+	Args:          cobra.NoArgs,
+	SilenceErrors: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		c, cleanup, err := lib.CreateDaemonServiceClient()
 		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
+			return fmt.Errorf("connect to daemon: %w", err)
 		}
 		defer cleanup()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer cancel()
 		r, err := c.ListActiveTunnels(ctx, &rpc.ListActiveTunnelsRequest{})
 		if err != nil {
-			fmt.Printf("could not execute command: %v", err)
-			return
+			return fmt.Errorf("list active tunnels: %w", err)
 		}
 		fmt.Print(formatters.NewActiveTunnelsFormatter(os.Stdout).Format(r))
+		return nil
 	},
 }

@@ -13,10 +13,10 @@ import (
 // AddConfigurationJSON is a structured variant of AddConfiguration that returns statusmessagedata.
 // It preserves the same validation and duplicate checks as the string-based task.
 func AddConfigurationJSON(ctx context.Context, req *pb.AddOrUpdateConfigurationRequest) (*pb.MutationResponse, error) {
-	if req == nil || req.Data == nil || req.Data.Name == "" {
+	if req == nil || req.Data == nil || req.Name == "" || req.Data.Name != req.Name {
 		return &pb.MutationResponse{
 			Status:  pb.ResponseStatus_Error,
-			Message: "missing config name",
+			Message: "configuration name is missing or inconsistent",
 		}, nil
 	}
 
@@ -38,7 +38,7 @@ func AddConfigurationJSON(ctx context.Context, req *pb.AddOrUpdateConfigurationR
 	}
 
 	// Resolve daemon config dir and add
-	dir, err := utils.ResolveDir(config.DefaultConfigDir)
+	dir, err := utils.ResolveDir(config.ConfigurationDir())
 	if err != nil {
 		return nil, err
 	}

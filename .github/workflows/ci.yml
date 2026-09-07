@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: "35.0"
+
+      - name: Verify modules
+        run: go mod verify
+
+      - name: Install protobuf generators
+        run: make proto-tools
+
+      - name: Check formatting
+        run: make fmt-check
+
+      - name: Vet
+        run: make vet
+
+      - name: Test with race detector
+        run: make test-race
+
+      - name: Build
+        run: make build
+
+      - name: Check generated protobuf files
+        run: make proto-check

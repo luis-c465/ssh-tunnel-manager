@@ -17,7 +17,7 @@ Current version: **v1.1.5**
 
 - **Go 1.25 or later** for building from source.
 - **Git** for cloning the repository.
-
+- A populated `~/.ssh/known_hosts` entry for each SSH server. Connect once with `ssh` or use `ssh-keyscan` before starting a tunnel; unknown or changed host keys are rejected.
 - **systemd user services** on Linux or **LaunchAgents** on macOS for the installed daemon service.
 - **Air** *(optional)* for live reload during development.
 
@@ -148,29 +148,29 @@ Use `sshtm help <command>` for command-specific details.
 
 ## Development
 
-### Generate protobuf code
+### Prerequisites
+
+Development requires Go 1.25+, Git, and [Protocol Buffers compiler 35.0](https://github.com/protocolbuffers/protobuf/releases/tag/v35.0). Install the pinned Go protobuf generators once:
 
 ```sh
-make gen_proto
+make proto-tools
 ```
 
-### Start the daemon with live reload
+[Air](https://github.com/air-verse/air) is optional for live reload.
+
+### Canonical development loop
+
+Regenerate protobuf code after editing `rpc/daemon.proto`, format changes, and run the full local gate:
 
 ```sh
-make gen_proto
-air
+make proto
+make fmt
+make check
 ```
 
-This assumes [Air](https://github.com/air-verse/air) is installed and the command is run from the project root.
+`make check` verifies formatting, runs `go vet`, normal and race-detector tests, builds both binaries, and confirms the committed generated protobuf files are current. Use `make coverage` to write `coverage.out`.
 
-### Run the CLI from source
-
-```sh
-cd client
-go run main.go [command] [arguments]
-```
-
-For example:
+Start the daemon with live reload using `air`, or run the CLI directly:
 
 ```sh
 cd client
@@ -183,31 +183,12 @@ go run main.go list
 make build
 ```
 
-This creates:
-
-- `./sshtmd` for the daemon.
-- `./sshtm` for the CLI.
-
-### Cross-platform builds
-
-The Makefile includes targets for Linux and macOS:
+This creates `./sshtmd` (daemon) and `./sshtm` (CLI). For release builds:
 
 ```sh
-make build_linux   # linux/amd64
-make build_macos   # darwin/amd64 + darwin/arm64
-make build_all     # linux + macos
-```
-
-You can pass an explicit version into builds:
-
-```sh
-make VERSION=1.1.5 build_all
-```
-
-### Run tests
-
-```sh
-go test ./...
+make build-linux   # linux/amd64 + linux/arm64
+make build-macos   # darwin/amd64 + arm64
+make VERSION=1.1.5 build-all
 ```
 
 ## Project layout

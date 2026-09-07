@@ -10,7 +10,7 @@ import (
 func ListConfigurationsJSONTask(ctx context.Context, req *pb.ListConfigurationsJSONRequest) (*pb.ListConfigurationsJSONResponse, error) {
 	cfgs, err := getConfigs()
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get saved configurations: %v", err)
+		return nil, fmt.Errorf("couldn't get saved configurations: %w", err)
 	}
 	if len(cfgs) == 0 {
 		return &pb.ListConfigurationsJSONResponse{Configs: []*pb.TunnelConfig{}}, nil

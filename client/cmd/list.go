@@ -28,8 +28,9 @@ Example Usage:
 - sshtm list (Lists all configurations)
 - sshtm list prod (Lists configurations that contain 'prod')
 	`,
-	Args: cobra.MinimumNArgs(0),
-	Run: func(cmd *cobra.Command, args []string) {
+	Args:          cobra.MaximumNArgs(1),
+	SilenceErrors: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		searchPattern := ""
 
 		if len(args) > 0 {
@@ -38,18 +39,17 @@ Example Usage:
 
 		c, cleanup, err := lib.CreateDaemonServiceClient()
 		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
+			return fmt.Errorf("connect to daemon: %w", err)
 		}
 		defer cleanup()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer cancel()
 		r, err := c.ListConfigurations(ctx, &pb.ListConfigurationsRequest{SearchPattern: searchPattern})
 		if err != nil {
-			fmt.Printf("could not execute command: %v", err)
-			return
+			return fmt.Errorf("list configurations: %w", err)
 		}
 		fmt.Print(formatters.NewConfigurationListFormatter(os.Stdout).Format(r))
+		return nil
 	},
 }

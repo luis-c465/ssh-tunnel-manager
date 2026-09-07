@@ -7,6 +7,11 @@ log_step() {
 
 log_step "Starting installation"
 
+command -v go >/dev/null 2>&1 || {
+	echo "Go is required to build sshtm" >&2
+	exit 1
+}
+
 # Paths (all user-scoped)
 DATA_DIR="$HOME/.ssh-tunnel-manager" # application data/config root
 
@@ -19,6 +24,17 @@ case "$ARCH_NAME" in
 		;;
 	arm64|aarch64)
 		ARCH_NAME="arm64"
+		;;
+	*)
+		echo "Unsupported architecture: $ARCH_NAME" >&2
+		exit 1
+		;;
+esac
+case "$OS_NAME" in
+	Darwin|Linux) ;;
+	*)
+		echo "Unsupported operating system: $OS_NAME" >&2
+		exit 1
 		;;
 esac
 if [ "$OS_NAME" = "Darwin" ]; then
@@ -40,13 +56,9 @@ else
 fi
 
 log_step "🔍 Detected $OS_NAME/$ARCH_NAME"
-log_step "📦 Installing protobuf code-generation plugins"
 
-# Ensure protobuf and gRPC plugins are available
-go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
-
-# Build binaries for the detected OS/arch
+# Build binaries for the detected OS/arch. Generated protobuf sources are
+# committed, so end users do not need protoc or its Go plugins.
 TARGET_OS=""
 if [ "$OS_NAME" = "Darwin" ]; then
 	TARGET_OS="darwin"
@@ -85,8 +97,9 @@ fi
 
 # Install/overwrite binaries in-place (updates existing installations)
 log_step "📥 Installing binaries into $BIN_DIR"
-install -m 755 -T "$SRC_DAEMON" "$DAEMON_BIN"
-install -m 755 -T "$SRC_CLIENT" "$CLIENT_BIN"
+rm -f "$DAEMON_BIN" "$CLIENT_BIN"
+install -m 755 "$SRC_DAEMON" "$DAEMON_BIN"
+install -m 755 "$SRC_CLIENT" "$CLIENT_BIN"
 
 # Refresh bundled scripts directory
 log_step "📜 Installing bundled scripts into $SCRIPTS_DIR"

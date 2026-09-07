@@ -6,14 +6,21 @@ import (
 	"github.com/besrabasant/ssh-tunnel-manager/pkg/configmanager"
 )
 
+// ConnectionSnapshot is an immutable view of a managed tunnel.
+type ConnectionSnapshot struct {
+	LocalAddr  string
+	RemoteAddr string
+	Config     configmanager.Entry
+}
+
 // TunnelManager defines the low-level operations for managing individual SSH tunnels.
 type TunnelManager interface {
-	CreateResultChannels() (chan string, chan error)
 	StartTunneling(ctx context.Context, entry configmanager.Entry, localPort int, resultChan chan<- string, errChan chan<- error)
+	RegisterConnection(localPort int, connection *ConnectionInfo) bool
+	StopTunneling(localPort int) bool
 	SaveActiveTunnels(path string) error
-	GetResultChan() <-chan string
-	GetErrChan() <-chan error
-	GetConnections() SSHConnections
+	ConnectionsSnapshot() map[int]ConnectionSnapshot
+	GetConnection(localPort int) (ConnectionSnapshot, bool)
 	Shutdown()
 }
 

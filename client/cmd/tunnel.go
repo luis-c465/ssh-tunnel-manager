@@ -30,51 +30,40 @@ Usage:
 - sshtm t my_configuration
 - sshtm t my_configuration 8080
 `,
-	Args:          cobra.MinimumNArgs(0),
+	Args:          cobra.RangeArgs(1, 2),
 	SilenceErrors: true,
-	Run: func(cmd *cobra.Command, args []string) {
-		configName := ""
-		localPortStr := ""
-
-		var localPort int
-
-		if len(args) == 0 {
-			fmt.Println("\n<configuration name> needed but not provided")
-			return
-		}
-
-		if len(args) > 0 {
-			configName = args[0]
-		}
-
+	RunE: func(cmd *cobra.Command, args []string) error {
+		configName := args[0]
+		localPort := -1
 		if len(args) > 1 {
-			localPortStr = args[1]
+			parsedPort, err := strconv.Atoi(args[1])
+			if err != nil || parsedPort < 1 || parsedPort > 65535 {
+				return fmt.Errorf("local port must be an integer between 1 and 65535")
+			}
+			localPort = parsedPort
 		}
-
-		// Parse given port
-		localPortInt, err := strconv.Atoi(localPortStr)
-		if err != nil {
-			// If no local port provided set as -1
-			localPortInt = -1
-		}
-		localPort = localPortInt
 
 		c, cleanup, err := lib.CreateDaemonServiceClient()
 		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
+			return fmt.Errorf("connect to daemon: %w", err)
 		}
 		defer cleanup()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := context.WithTimeout(cmd.Context(), 20*time.Second)
 		defer cancel()
 
 		r, err := c.StartTunnel(ctx, &pb.StartTunnelRequest{ConfigName: configName, LocalPort: int32(localPort)})
 		if err != nil {
-			fmt.Printf("could not execute command: %v", err)
-			return
+			return fmt.Errorf("start tunnel: %w", err)
+		}
+		if r.GetStatus() == pb.ResponseStatus_Error {
+			if r.GetMessage() != "" {
+				return fmt.Errorf("start tunnel: %s", r.GetMessage())
+			}
+			return fmt.Errorf("start tunnel failed: %s", r.GetResult())
 		}
 
 		fmt.Print(formatters.NewOperationFormatter(os.Stdout).Format(formatters.OperationFromStart(r)))
+		return nil
 	},
 }

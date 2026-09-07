@@ -8,7 +8,7 @@ import (
 )
 
 func ListActiveTunnelsJSONTask(ctx context.Context, _ *pb.ListActiveTunnelsJSONRequest, service tunnelmanager.TunnelService) (*pb.ListActiveTunnelsJSONResponse, error) {
-	connections := service.GetManager().GetConnections()
+	connections := service.GetManager().ConnectionsSnapshot()
 	resp := &pb.ListActiveTunnelsJSONResponse{Tunnels: make([]*pb.ActiveTunnel, 0, len(connections))}
 	for port, conn := range connections {
 		resp.Tunnels = append(resp.Tunnels, &pb.ActiveTunnel{

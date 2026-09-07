@@ -12,7 +12,7 @@ import (
 func ListActiveTunnelsTask(ctx context.Context, req *rpc.ListActiveTunnelsRequest, service tunnelmanager.TunnelService) (*rpc.ListActiveTunnelsResponse, error) {
 	tunnels, err := service.ListActiveTunnels(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list active tunnels: %w", err)
 	}
 
 	var output strings.Builder

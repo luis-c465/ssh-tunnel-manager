@@ -30,9 +30,11 @@ The project implements a CLI client and background daemon for managing SSH tunne
 - Interactive forms in `client/lib` use `tview` for adding or editing tunnels.
 
 ### Usage and Development
-- Run `./install.sh` to build binaries and install a user-level systemd service for the daemon.
-- During development, use `make gen_proto` followed by `air` for live reloading.
-- `scripts/uninstall.sh` stops the service and removes installed files.
+- Run `./install.sh` to build binaries and install a user-level systemd service on Linux or LaunchAgent on macOS.
+- Run `make check` before submitting changes; it checks formatting, vet, normal and race tests, builds, and generated protobuf files.
+- After editing `rpc/daemon.proto`, run `make proto-tools` once and `make proto` to regenerate committed code.
+- Use `air` for daemon live reloading when desired.
+- `scripts/uninstall.sh` stops the service and removes installed files while preserving user configuration data.
 
 ### Dependencies
 The project relies on:

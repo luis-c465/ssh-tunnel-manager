@@ -3,7 +3,6 @@ package tasks
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/besrabasant/ssh-tunnel-manager/config"
@@ -14,19 +13,14 @@ import (
 )
 
 func getConfigs() ([]configmanager.Entry, error) {
-	dirpath := config.DefaultConfigDir
-	if value := os.Getenv(config.ConfigDirFlagName); value != "" {
-		dirpath = value
-	}
-
-	configdir, err := utils.ResolveDir(dirpath)
+	configdir, err := utils.ResolveDir(config.ConfigurationDir())
 	if err != nil {
 		return nil, err
 	}
 
 	cfgs, err := configmanager.NewManager(configdir).GetConfigurations()
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get saved configurations: %v", err)
+		return nil, fmt.Errorf("couldn't get saved configurations: %w", err)
 	}
 
 	if len(cfgs) == 0 {

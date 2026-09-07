@@ -15,6 +15,10 @@ func AddConfiguration(ctx context.Context, req *rpc.AddOrUpdateConfigurationRequ
 	var output strings.Builder
 	output.WriteString("\n")
 
+	if req == nil || req.Data == nil || req.Name == "" || req.Data.Name != req.Name {
+		return mutationResponse(output.String(), rpc.ResponseStatus_Error, "configuration name is missing or inconsistent"), nil
+	}
+
 	cfgs, err := getConfigs()
 	if err != nil {
 		return mutationResponse("\nError while adding configurations found\n", rpc.ResponseStatus_Error, "Error while reading configurations"), nil
@@ -29,7 +33,7 @@ func AddConfiguration(ctx context.Context, req *rpc.AddOrUpdateConfigurationRequ
 		return mutationResponse(fmt.Sprintf("\nA congiguration already exits with name %s \n", req.Name), rpc.ResponseStatus_Error, message), nil
 	}
 
-	configdir, err := utils.ResolveDir(config.DefaultConfigDir)
+	configdir, err := utils.ResolveDir(config.ConfigurationDir())
 	if err != nil {
 		return nil, err
 	}

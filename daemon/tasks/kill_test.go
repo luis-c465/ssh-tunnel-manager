@@ -21,10 +21,10 @@ func TestKillTunnelTask_NoDeadlock(t *testing.T) {
 	cf := configmanager.NewManager(tmp)
 	service := tunnelmanager.NewTunnelService(manager, cf, tmp)
 
-	manager.GetConnections()[1234] = &tunnelmanager.ConnectionInfo{
+	manager.RegisterConnection(1234, &tunnelmanager.ConnectionInfo{
 		Config: configmanager.Entry{Name: "test"},
 		Cancel: func() {},
-	}
+	})
 
 	done := make(chan struct{})
 	go func() {

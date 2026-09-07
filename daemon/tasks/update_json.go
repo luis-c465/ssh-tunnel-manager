@@ -12,12 +12,12 @@ import (
 )
 
 func UpdateConfigurationJSON(ctx context.Context, req *pb.AddOrUpdateConfigurationRequest, service tunnelmanager.TunnelService) (*pb.MutationResponse, error) {
-	if req == nil || req.Data == nil || req.Data.Name == "" {
-		return &pb.MutationResponse{Status: pb.ResponseStatus_Error, Message: "missing config name"}, nil
+	if req == nil || req.Data == nil || req.Name == "" || req.Data.Name != req.Name {
+		return &pb.MutationResponse{Status: pb.ResponseStatus_Error, Message: "configuration name is missing or inconsistent"}, nil
 	}
 
 	// Block update if there's an active connection using this config (same behavior as legacy string RPC)
-	connections := service.GetManager().GetConnections()
+	connections := service.GetManager().ConnectionsSnapshot()
 	var port int = -1
 	for p, ci := range connections {
 		if ci.Config.Name == req.Name {
@@ -34,9 +34,9 @@ func UpdateConfigurationJSON(ctx context.Context, req *pb.AddOrUpdateConfigurati
 	}
 
 	// Resolve daemon config dir and update
-	dir, err := utils.ResolveDir(config.DefaultConfigDir)
+	dir, err := utils.ResolveDir(config.ConfigurationDir())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve config directory: %w", err)
 	}
 	if err := configmanager.NewManager(dir).UpdateConfiguration(*configmanager.ConvertRpcTunnelConfigToConfig(req.Data)); err != nil {
 		return &pb.MutationResponse{

@@ -17,9 +17,13 @@ func UpdateConfiguration(ctx context.Context, req *rpc.AddOrUpdateConfigurationR
 
 	output.WriteString("\n")
 
-	// Check for open connections
-	connections := service.GetManager().GetConnections()
-	var openConns tunnelmanager.SSHConnections = make(map[int]*tunnelmanager.ConnectionInfo)
+	if req == nil || req.Data == nil || req.Name == "" || req.Data.Name != req.Name {
+		return mutationResponse(output.String(), rpc.ResponseStatus_Error, "configuration name is missing or inconsistent"), nil
+	}
+
+	// Check for open connections.
+	connections := service.GetManager().ConnectionsSnapshot()
+	openConns := make(map[int]tunnelmanager.ConnectionSnapshot)
 	for port, ci := range connections {
 		if ci.Config.Name == req.Name {
 			openConns[port] = ci
@@ -37,9 +41,9 @@ func UpdateConfiguration(ctx context.Context, req *rpc.AddOrUpdateConfigurationR
 		return mutationResponse(output.String(), rpc.ResponseStatus_Error, message), nil
 	}
 
-	configdir, err := utils.ResolveDir(config.DefaultConfigDir)
+	configdir, err := utils.ResolveDir(config.ConfigurationDir())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve config directory: %w", err)
 	}
 
 	err = configmanager.NewManager(configdir).UpdateConfiguration(*configmanager.ConvertRpcTunnelConfigToConfig(req.Data))

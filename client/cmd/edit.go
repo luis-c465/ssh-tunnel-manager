@@ -28,40 +28,25 @@ Example Usage:
 - sshtm edit my_configuration
 - sshtm e my_configuration
 `,
-	Args: cobra.MinimumNArgs(0),
-	Run: func(cmd *cobra.Command, args []string) {
-		configName := ""
-
-		if len(args) == 0 {
-			fmt.Println("\n<configuration name> needed but not provided")
-			return
-		}
-
-		if len(args) > 0 {
-			configName = args[0]
-		}
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		configName := args[0]
 
 		c, cleanup, err := lib.CreateDaemonServiceClient()
 		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
+			return err
 		}
 		defer cleanup()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer cancel()
 
 		r, err := c.FetchConfiguration(ctx, &rpc.FetchConfigurationRequest{Name: configName})
 		if err != nil {
-			fmt.Printf("could not execute command: %v", err)
-			return
+			return fmt.Errorf("fetch configuration: %w", err)
 		}
-
-		status := r.GetStatus()
-
-		if status == rpc.ResponseStatus_Error {
-			fmt.Print(formatters.NewFetchFormatter(os.Stdout).Format(r))
-			return
+		if r.GetStatus() == rpc.ResponseStatus_Error {
+			return fmt.Errorf("fetch configuration: %s", r.GetMessage())
 		}
 
 		data := r.GetData()
@@ -76,13 +61,18 @@ Example Usage:
 			SecondaryBtnLabel: "Cancel",
 		}
 
+		var callbackErr error
 		editForm := lib.ConfigurationForm(formConfig, app, data, func(data *rpc.TunnelConfig) {
-			updateCtx, cancel := context.WithCancel(context.Background())
+			updateCtx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 			defer cancel()
 
 			r, err := c.UpdateConfiguration(updateCtx, &rpc.AddOrUpdateConfigurationRequest{Name: configName, Data: data})
 			if err != nil {
-				fmt.Printf("could not execute command: %v", err)
+				callbackErr = fmt.Errorf("update configuration: %w", err)
+				return
+			}
+			if r.GetStatus() == rpc.ResponseStatus_Error {
+				callbackErr = fmt.Errorf("update configuration: %s", r.GetMessage())
 				return
 			}
 
@@ -90,7 +80,8 @@ Example Usage:
 		})
 
 		if err := app.SetRoot(editForm, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
-			panic(err)
+			return fmt.Errorf("run edit configuration form: %w", err)
 		}
+		return callbackErr
 	},
 }

@@ -13,7 +13,7 @@ func ConvertConfigToRpcTunnelConfig(cfg *Entry) *rpc.TunnelConfig {
 		KeyFile:     cfg.KeyFile,
 		RemoteHost:  cfg.RemoteHost,
 		RemotePort:  int32(cfg.RemotePort),
-		LocalPort:  int32(cfg.LocalPort),
+		LocalPort:   int32(cfg.LocalPort),
 	}
 }
 
@@ -26,6 +26,6 @@ func ConvertRpcTunnelConfigToConfig(cfg *rpc.TunnelConfig) *Entry {
 		KeyFile:     cfg.KeyFile,
 		RemoteHost:  cfg.RemoteHost,
 		RemotePort:  int(cfg.RemotePort),
-		LocalPort:  int(cfg.LocalPort),
+		LocalPort:   int(cfg.LocalPort),
 	}
 }

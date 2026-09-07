@@ -17,8 +17,12 @@ func DeleteTunnelConfigTask(ctx context.Context, req *rpc.DeleteConfigurationReq
 
 	output.WriteString("\n")
 
-	// Check for open connections
-	for port, ci := range service.GetManager().GetConnections() {
+	if req == nil || req.Name == "" {
+		return &rpc.DeleteConfigurationResponse{Result: output.String(), Status: rpc.ResponseStatus_Error, Message: "missing config name"}, nil
+	}
+
+	// Check for open connections.
+	for port, ci := range service.GetManager().ConnectionsSnapshot() {
 		if ci.Config.Name == req.Name {
 			return nil, fmt.Errorf("cannot delete configuration %q as a connection is open on port %d", req.Name, port)
 		}
@@ -33,9 +37,9 @@ func DeleteTunnelConfigTask(ctx context.Context, req *rpc.DeleteConfigurationReq
 		return &rpc.DeleteConfigurationResponse{Result: "\nNo configurations found\n", Status: rpc.ResponseStatus_Error, Message: "No configurations found"}, nil
 	}
 
-	configdir, err := utils.ResolveDir(config.DefaultConfigDir)
+	configdir, err := utils.ResolveDir(config.ConfigurationDir())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve config directory: %w", err)
 	}
 
 	err = configmanager.NewManager(configdir).RemoveConfiguration(req.GetName())

@@ -33,12 +33,11 @@ Examples:
 - sshtm add
 - sshtm a
 	`,
-	Args: cobra.MinimumNArgs(0),
-	Run: func(cmd *cobra.Command, args []string) {
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		c, cleanup, err := lib.CreateDaemonServiceClient()
 		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
+			return err
 		}
 		defer cleanup()
 
@@ -52,13 +51,18 @@ Examples:
 			SecondaryBtnLabel: "Cancel",
 		}
 
+		var callbackErr error
 		addForm := lib.ConfigurationForm(formConfig, app, &data, func(data *rpc.TunnelConfig) {
-			addCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			addCtx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 			defer cancel()
 
 			r, err := c.AddConfiguration(addCtx, &rpc.AddOrUpdateConfigurationRequest{Name: data.Name, Data: data})
 			if err != nil {
-				fmt.Printf("could not execute command: %v", err)
+				callbackErr = fmt.Errorf("add configuration: %w", err)
+				return
+			}
+			if r.GetStatus() == rpc.ResponseStatus_Error {
+				callbackErr = fmt.Errorf("add configuration: %s", r.GetMessage())
 				return
 			}
 
@@ -66,7 +70,8 @@ Examples:
 		})
 
 		if err := app.SetRoot(addForm, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
-			panic(err)
+			return fmt.Errorf("run add configuration form: %w", err)
 		}
+		return callbackErr
 	},
 }

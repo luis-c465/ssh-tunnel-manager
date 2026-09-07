@@ -15,98 +15,70 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// ensureServerAddress appends the default SSH port if none is specified
 func ensureServerAddress(addr string) string {
-	if _, _, err := net.SplitHostPort(addr); err != nil {
-		if !strings.Contains(addr, ":") {
-			return addr + ":" + config.DefaultSSHPort
-		}
+	if _, _, err := net.SplitHostPort(addr); err != nil && !strings.Contains(addr, ":") {
+		return addr + ":" + config.DefaultSSHPort
 	}
 	return addr
 }
 
-// recreateSSHClient attempts to establish a new ssh.Client when the existing
-// connection breaks. It updates the ConnectionInfo in place if successful.
 func (m *tunnelManager) recreateSSHClient(ci *ConnectionInfo, port int) error {
 	ci.reconnectMu.Lock()
 	defer ci.reconnectMu.Unlock()
-
-	sshServer := ensureServerAddress(ci.Config.Server)
-
+	if err := m.context.Err(); err != nil {
+		return err
+	}
 	privateKey, err := readPrivateKeyFile(ci.Config.KeyFile)
 	if err != nil {
 		return err
 	}
 	key, err := ssh.ParsePrivateKey(privateKey)
 	if err != nil {
-		return fmt.Errorf("couldn't parse private key %q: %v", ci.Config.KeyFile, err)
+		return fmt.Errorf("couldn't parse private key %q: %w", ci.Config.KeyFile, err)
 	}
-	cfg := &ssh.ClientConfig{
-		User:            ci.Config.User,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(key)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         10 * time.Second,
-	}
-	client, err := ssh.Dial("tcp", sshServer, cfg)
+	hostKeyCallback, err := knownHostsHostKeyCallback()
 	if err != nil {
 		return err
 	}
-
+	client, err := ssh.Dial("tcp", ensureServerAddress(ci.Config.Server), &ssh.ClientConfig{
+		User: ci.Config.User, Auth: []ssh.AuthMethod{ssh.PublicKeys(key)},
+		HostKeyCallback: hostKeyCallback, Timeout: 10 * time.Second,
+	})
+	if err != nil {
+		return err
+	}
+	if m.context.Err() != nil {
+		_ = client.Close()
+		return m.context.Err()
+	}
 	ci.replaceClient(client)
-
 	return nil
 }
 
-// monitorTunnel keeps an established SSH session alive and recreates it when
-// the network connection was invalidated while the machine was asleep. A
-// local listener remains usable throughout the reconnect attempt.
-func (m *tunnelManager) monitorTunnel(ctx context.Context, tunnelCtx context.Context, ci *ConnectionInfo, port int) {
+func (m *tunnelManager) monitorTunnel(tunnelCtx context.Context, ci *ConnectionInfo, port int) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case <-ticker.C:
 			client := ci.getClient()
-			if client == nil {
-				return
-			}
-
-			if err := probeSSHClient(client); err == nil {
+			if client == nil || probeSSHClient(client) == nil {
 				continue
 			}
-
-			select {
-			case <-tunnelCtx.Done():
-				return
-			case <-ctx.Done():
-				return
-			default:
-			}
-
 			if err := m.recreateSSHClient(ci, port); err != nil {
 				log.Printf("failed to reconnect SSH tunnel on local port %d: %v", port, err)
-			} else {
-				log.Printf("reconnected SSH tunnel on local port %d", port)
 			}
 		case <-tunnelCtx.Done():
 			return
-		case <-ctx.Done():
+		case <-m.context.Done():
 			return
 		}
 	}
 }
 
-// probeSSHClient uses a bounded request so a half-open TCP connection cannot
-// permanently block the monitor after resume. Replacing the client closes the
-// old one and releases the request goroutine if the timeout fires.
 func probeSSHClient(client *ssh.Client) error {
 	result := make(chan error, 1)
-	go func() {
-		_, _, err := client.SendRequest("keepalive@openssh.com", true, nil)
-		result <- err
-	}()
-
+	go func() { _, _, err := client.SendRequest("keepalive@openssh.com", true, nil); result <- err }()
 	select {
 	case err := <-result:
 		return err
@@ -115,277 +87,256 @@ func probeSSHClient(client *ssh.Client) error {
 	}
 }
 
-// tunnelManager manages multiple SSH tunnels
+// tunnelManager serializes only map access. Network I/O is deliberately done
+// after a tunnel has been reserved in the map.
 type tunnelManager struct {
-	Mutex       sync.Mutex
-	Connections SSHConnections
-	shutdown    chan struct{}
-	ResultChan  chan string
-	ErrChan     chan error
+	Mutex        sync.RWMutex
+	Connections  SSHConnections
+	context      context.Context
+	cancel       context.CancelFunc
+	shutdownOnce sync.Once
 }
 
 func NewTunnelManager() TunnelManager {
-	return &tunnelManager{
-		Connections: make(SSHConnections),
-		Mutex:       sync.Mutex{},
-		shutdown:    make(chan struct{}),
+	ctx, cancel := context.WithCancel(context.Background())
+	return &tunnelManager{Connections: make(SSHConnections), context: ctx, cancel: cancel}
+}
+
+func (m *tunnelManager) ConnectionsSnapshot() map[int]ConnectionSnapshot {
+	m.Mutex.RLock()
+	defer m.Mutex.RUnlock()
+	result := make(map[int]ConnectionSnapshot, len(m.Connections))
+	for port, ci := range m.Connections {
+		result[port] = ConnectionSnapshot{LocalAddr: ci.LocalAddr, RemoteAddr: ci.RemoteAddr, Config: ci.Config}
 	}
+	return result
+}
+func (m *tunnelManager) GetConnection(port int) (ConnectionSnapshot, bool) {
+	m.Mutex.RLock()
+	defer m.Mutex.RUnlock()
+	ci, ok := m.Connections[port]
+	if !ok {
+		return ConnectionSnapshot{}, false
+	}
+	return ConnectionSnapshot{LocalAddr: ci.LocalAddr, RemoteAddr: ci.RemoteAddr, Config: ci.Config}, true
 }
 
-func (m *tunnelManager) CreateResultChannels() (chan string, chan error) {
-	m.ResultChan = make(chan string, 1)
-	m.ErrChan = make(chan error, 1)
-	return m.ResultChan, m.ErrChan
-}
-
-func (m *tunnelManager) GetResultChan() <-chan string {
-	return m.ResultChan
-}
-
-func (m *tunnelManager) GetErrChan() <-chan error {
-	return m.ErrChan
-}
-
-func (m *tunnelManager) GetConnections() SSHConnections {
-	return m.Connections
+// RegisterConnection atomically reserves a local port for a tunnel.
+func (m *tunnelManager) RegisterConnection(port int, connection *ConnectionInfo) bool {
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+	if _, exists := m.Connections[port]; exists {
+		return false
+	}
+	m.Connections[port] = connection
+	return true
 }
 
 func (m *tunnelManager) Shutdown() {
-	close(m.shutdown)
+	m.shutdownOnce.Do(func() {
+		m.cancel()
+		m.Mutex.Lock()
+		connections := m.Connections
+		m.Connections = make(SSHConnections)
+		m.Mutex.Unlock()
+		for _, ci := range connections {
+			ci.ClearConnection()
+		}
+	})
+}
+
+func (m *tunnelManager) StopTunneling(port int) bool {
+	m.Mutex.Lock()
+	ci, ok := m.Connections[port]
+	if ok {
+		delete(m.Connections, port)
+	}
+	m.Mutex.Unlock()
+	if ok {
+		ci.ClearConnection()
+	}
+	return ok
+}
+
+func (m *tunnelManager) sendResult(ch chan<- string, value string) {
+	select {
+	case ch <- value:
+	case <-m.context.Done():
+	}
+}
+func (m *tunnelManager) sendError(ch chan<- error, err error) {
+	select {
+	case ch <- err:
+	case <-m.context.Done():
+	}
 }
 
 func (m *tunnelManager) StartTunneling(ctx context.Context, entry configmanager.Entry, localPort int, resultChan chan<- string, errChan chan<- error) {
-	// Defer closing of this start request's communication channels
 	defer close(resultChan)
 	defer close(errChan)
-
-	// Enable lock and ensure it's released on every exit path
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
-
-	// Close Existing connections
-	if connInfo, exists := m.Connections[localPort]; exists {
-		resultChan <- fmt.Sprint("Closing existing connection on port ", localPort, "\n")
-
-		// If there's an existing connection on the same port, close it
-		connInfo.Cancel() // Cancel the context of the existing connection
-		if connInfo.Listener != nil {
-			connInfo.StopListeners()
-			connInfo.ClearConnection()
-		}
+	if err := ctx.Err(); err != nil {
+		m.sendError(errChan, err)
+		return
+	}
+	if err := m.context.Err(); err != nil {
+		m.sendError(errChan, err)
+		return
 	}
 
-	// Initial status message
-	resultChan <- "Starting tunnel setup...\n"
-
-	// The SSH server to connect to. The address can contain a port.
-	sshServer := entry.Server
-	// The username to use when connecting
-	sshUser := entry.User
-	// The private key file to use for authentication
-	keyFile := entry.KeyFile
-	// The remote host and port to forward traffic to
-	remoteAddress := fmt.Sprintf("%s:%d", entry.RemoteHost, entry.RemotePort)
-	localAddress := fmt.Sprintf("%s:%d", "127.0.0.1", localPort)
-
-	// Create new cancellation context for this connection
-	tunnelCtx, cancel := context.WithCancel(ctx)
-	m.Connections[localPort] = &ConnectionInfo{
-		Listener:   nil, // This will be updated once the listener is set up
-		Cancel:     cancel,
-		RemoteAddr: remoteAddress,
-		LocalAddr:  localAddress,
-		Config:     entry,
+	sshServer := ensureServerAddress(entry.Server)
+	if _, _, err := net.SplitHostPort(sshServer); err != nil {
+		m.sendError(errChan, fmt.Errorf("bad ssh server address: %w", err))
+		return
 	}
+	remoteAddress, localAddress := fmt.Sprintf("%s:%d", entry.RemoteHost, entry.RemotePort), fmt.Sprintf("127.0.0.1:%d", localPort)
+	tunnelCtx, cancel := context.WithCancel(m.context)
+	ci := &ConnectionInfo{LocalAddr: localAddress, RemoteAddr: remoteAddress, Config: entry, Cancel: cancel}
 
+	if !m.RegisterConnection(localPort, ci) {
+		cancel()
+		m.sendError(errChan, fmt.Errorf("connection is already open on port %d", localPort))
+		return
+	}
 	setupSuccess := false
 	defer func() {
 		if !setupSuccess {
-			cancel()
-			delete(m.Connections, localPort)
+			ci.ClearConnection()
+			m.Mutex.Lock()
+			if m.Connections[localPort] == ci {
+				delete(m.Connections, localPort)
+			}
+			m.Mutex.Unlock()
 		}
 	}()
 
-	// Check if the ssh server address specifies a port. And use 22 if not.
-	_, _, serverReadErr := net.SplitHostPort(sshServer)
-	if serverReadErr != nil {
-		var addrErr *net.AddrError
-		if errors.As(serverReadErr, &addrErr) {
-			hasPort := strings.LastIndex(sshServer, ":") != -1
-			if hasPort {
-				errChan <- fmt.Errorf("bad ssh server address: %v", serverReadErr)
-				return
-			} else {
-				resultChan <- fmt.Sprintf("SSH server %q specifies no port. Will use %s\n", sshServer, config.DefaultSSHPort)
-				// Use 22 as a default ssh port.
-				sshServer = sshServer + ":" + config.DefaultSSHPort
-			}
-		} else {
-			errChan <- serverReadErr
-		}
-	}
-
-	// Load the private key file
-	privateKey, keyReadErr := readPrivateKeyFile(keyFile)
-	if keyReadErr != nil {
-		errChan <- keyReadErr
+	m.sendResult(resultChan, "Starting tunnel setup...\n")
+	privateKey, err := readPrivateKeyFile(entry.KeyFile)
+	if err != nil {
+		m.sendError(errChan, err)
 		return
 	}
-
-	key, keyParseErr := ssh.ParsePrivateKey(privateKey)
-	if keyParseErr != nil {
-		errChan <- fmt.Errorf("couldn't parse private key %q: %v", keyFile, keyParseErr)
+	key, err := ssh.ParsePrivateKey(privateKey)
+	if err != nil {
+		m.sendError(errChan, fmt.Errorf("couldn't parse private key %q: %w", entry.KeyFile, err))
 		return
 	}
-
-	// Define timeout for SSH connection
+	hostKeyCallback, err := knownHostsHostKeyCallback()
+	if err != nil {
+		m.sendError(errChan, err)
+		return
+	}
 	timeout := 10 * time.Second
-
-	// Set up the SSH client config
-	config := &ssh.ClientConfig{
-		User: sshUser,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(key),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         timeout,
-	}
-
-	// Connect to the SSH server
-	resultChan <- fmt.Sprintf("Connecting to %q with a timeout of %s", sshServer, timeout)
-
-	client, clientErr := ssh.Dial("tcp", sshServer, config)
-	if clientErr != nil {
-		errChan <- fmt.Errorf("couldn't connect to SSH server %q: %v", sshServer, clientErr)
+	m.sendResult(resultChan, fmt.Sprintf("Connecting to %q with a timeout of %s", sshServer, timeout))
+	client, err := ssh.Dial("tcp", sshServer, &ssh.ClientConfig{User: entry.User, Auth: []ssh.AuthMethod{ssh.PublicKeys(key)}, HostKeyCallback: hostKeyCallback, Timeout: timeout})
+	if err != nil {
+		m.sendError(errChan, fmt.Errorf("couldn't connect to SSH server %q: %w", sshServer, err))
 		return
 	}
+	if err := ctx.Err(); err != nil {
+		_ = client.Close()
+		m.sendError(errChan, err)
+		return
+	}
+	if err := tunnelCtx.Err(); err != nil {
+		_ = client.Close()
+		m.sendError(errChan, err)
+		return
+	}
+	if m.context.Err() != nil {
+		_ = client.Close()
+		m.sendError(errChan, m.context.Err())
+		return
+	}
+	ci.replaceClient(client)
+	m.sendResult(resultChan, "\nConnected\n")
 
-	resultChan <- "\nConnected\n"
-
-	// Set up the local listener
 	var listener net.Listener
-	var listenerErr error
-
 	for attempts := 0; attempts < 5; attempts++ {
-		// Forward the local port to the remote address
-		listener, listenerErr = net.Listen("tcp", localAddress)
-		if listenerErr == nil {
-			break // Successfully bound to the port
+		listener, err = net.Listen("tcp", localAddress)
+		if err == nil {
+			break
 		}
-		time.Sleep(time.Second) // Wait before retrying
+		select {
+		case <-ctx.Done():
+			m.sendError(errChan, ctx.Err())
+			return
+		case <-m.context.Done():
+			m.sendError(errChan, m.context.Err())
+			return
+		case <-tunnelCtx.Done():
+			m.sendError(errChan, tunnelCtx.Err())
+			return
+		case <-time.After(time.Second):
+		}
 	}
-
-	if listenerErr != nil {
-		errChan <- fmt.Errorf("couldn't set up local listener after retries: %v", listenerErr)
+	if err != nil {
+		m.sendError(errChan, fmt.Errorf("couldn't set up local listener after retries: %w", err))
 		return
 	}
-
-	// Update the connections map with the actual listener
-	currentConnInfo := m.Connections[localPort]
-	currentConnInfo.Client = client
-	currentConnInfo.Listener = listener
-	m.Connections[localPort] = currentConnInfo
-
+	ci.setListener(listener)
+	m.Mutex.RLock()
+	current := m.Connections[localPort] == ci
+	m.Mutex.RUnlock()
+	if !current {
+		ci.ClearConnection()
+		return
+	}
 	setupSuccess = true
-
-	resultChan <- "Local listener set up, ready to accept connections.\n"
-
-	// Start accepting connections on the local listener
-	resultChan <- fmt.Sprintf("Tunneling %q <==> %q through %q\n", localAddress, remoteAddress, sshServer)
-	// Handle incoming connections on local port
-	go m.forwardTunnel(ctx, tunnelCtx, remoteAddress, localPort)
-	go m.monitorTunnel(ctx, tunnelCtx, currentConnInfo, localPort)
+	m.sendResult(resultChan, "Local listener set up, ready to accept connections.\n")
+	m.sendResult(resultChan, fmt.Sprintf("Tunneling %q <==> %q through %q\n", localAddress, remoteAddress, sshServer))
+	go m.forwardTunnel(tunnelCtx, ci, remoteAddress, localPort)
+	go m.monitorTunnel(tunnelCtx, ci, localPort)
 }
 
-func (m *tunnelManager) forwardTunnel(ctx context.Context, tunnelCtx context.Context, remoteAddress string, localPort int) {
-	m.Mutex.Lock()
-	currentConnInfo, exists := m.Connections[localPort]
-	m.Mutex.Unlock()
-
-	if !exists || currentConnInfo.Listener == nil {
-		log.Println("No listener found, returning")
+func (m *tunnelManager) forwardTunnel(tunnelCtx context.Context, ci *ConnectionInfo, remoteAddress string, localPort int) {
+	defer func() {
+		m.Mutex.Lock()
+		if m.Connections[localPort] == ci {
+			delete(m.Connections, localPort)
+		}
+		m.Mutex.Unlock()
+	}()
+	listener := ci.getListener()
+	if listener == nil {
 		return
 	}
-
 	for {
-		select {
-		case <-m.shutdown:
-			m.Mutex.Lock()
-			for _, connInfo := range m.Connections {
-				if connInfo.Client != nil {
-					connInfo.ClearConnection()
-				}
-			}
-			m.Connections = make(SSHConnections) // Clear all connections
-			m.Mutex.Unlock()
-			return
-
-		case <-tunnelCtx.Done():
-			m.Mutex.Lock()
-			currentConnInfo.Cancel()
-			delete(m.Connections, localPort)
-			m.Mutex.Unlock()
-			return // Exit the loop and goroutine
-		case <-ctx.Done():
-			// Additional cleanup if needed
-			return // Usually signifies the parent context was cancelled
-		default:
-			m.Mutex.Lock()
-			if currentConnInfo.Listener == nil {
-				m.Mutex.Unlock()
-				log.Printf("Listener is not available or connection info does not exist for port %d", localPort)
+		localConn, err := listener.Accept()
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) || tunnelCtx.Err() != nil || m.context.Err() != nil {
 				return
 			}
-			m.Mutex.Unlock()
+			log.Printf("Failed to accept local connection: %v", err)
+			continue
+		}
+		ci.AddConnection(localConn)
+		go m.forwardConnection(ci, localConn, remoteAddress, localPort)
+	}
+}
 
-			localConn, err := currentConnInfo.Listener.Accept()
-			if err != nil {
-				// If we receive an error due to the listener being closed, gracefully exit the loop
-				if errors.Is(err, net.ErrClosed) {
-					currentConnInfo.Cancel()
-					m.Mutex.Lock()
-					delete(m.Connections, localPort)
-					m.Mutex.Unlock()
-					return
-				}
-				log.Printf("Failed to accept local connection: %v", err)
-				continue
-			}
-
-			m.Mutex.Lock()
-			currentConnInfo.AddConnection(localConn)
-			m.Mutex.Unlock()
-
-			// Start the SSH tunnel for each incoming connection
-			go func(localConn net.Conn) {
-				client := currentConnInfo.getClient()
-				if client == nil {
-					localConn.Close()
-					return
-				}
-				remoteConn, err := client.Dial("tcp", remoteAddress)
-				if err != nil {
-					log.Printf("error dialing remote address %s: %v", remoteAddress, err)
-					if recErr := m.recreateSSHClient(currentConnInfo, localPort); recErr != nil {
-						log.Printf("failed to recreate ssh client: %v", recErr)
-						localConn.Close()
-						return
-					}
-					client = currentConnInfo.getClient()
-					if client == nil {
-						localConn.Close()
-						return
-					}
-					remoteConn, err = client.Dial("tcp", remoteAddress)
-					if err != nil {
-						log.Printf("error dialing remote address %s after reconnect: %v", remoteAddress, err)
-						localConn.Close()
-						return
-					}
-				}
-
-				runTunnel(localConn, remoteConn)
-			}(localConn)
+func (m *tunnelManager) forwardConnection(ci *ConnectionInfo, localConn net.Conn, remoteAddress string, localPort int) {
+	defer ci.RemoveConnection(localConn)
+	client := ci.getClient()
+	if client == nil {
+		_ = localConn.Close()
+		return
+	}
+	remoteConn, err := client.Dial("tcp", remoteAddress)
+	if err != nil {
+		if recErr := m.recreateSSHClient(ci, localPort); recErr != nil {
+			_ = localConn.Close()
+			return
+		}
+		client = ci.getClient()
+		if client == nil {
+			_ = localConn.Close()
+			return
+		}
+		remoteConn, err = client.Dial("tcp", remoteAddress)
+		if err != nil {
+			_ = localConn.Close()
+			return
 		}
 	}
+	runTunnel(localConn, remoteConn)
 }
