@@ -27,6 +27,7 @@ type TunnelManager interface {
 // TunnelService defines the high-level operations for managing tunnels and their persistence.
 type TunnelService interface {
 	StartTunnel(ctx context.Context, configName string, localPort int32) (string, error)
+	StartOneOffTunnel(ctx context.Context, machineID, remoteHost string, remotePort, localPort int32) (string, error)
 	StopTunnel(ctx context.Context, configName string, localPort int32) (string, error)
 	ListActiveTunnels(ctx context.Context) ([]ActiveTunnel, error)
 	RestoreTunnels(ctx context.Context) error

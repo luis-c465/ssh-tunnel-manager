@@ -29,6 +29,7 @@ const (
 	DaemonService_DeleteConfiguration_FullMethodName     = "/daemon.DaemonService/DeleteConfiguration"
 	DaemonService_DeleteConfigurationJSON_FullMethodName = "/daemon.DaemonService/DeleteConfigurationJSON"
 	DaemonService_StartTunnel_FullMethodName             = "/daemon.DaemonService/StartTunnel"
+	DaemonService_StartOneOffTunnel_FullMethodName       = "/daemon.DaemonService/StartOneOffTunnel"
 	DaemonService_KillTunnel_FullMethodName              = "/daemon.DaemonService/KillTunnel"
 	DaemonService_ListActiveTunnels_FullMethodName       = "/daemon.DaemonService/ListActiveTunnels"
 	DaemonService_ListActiveTunnelsJSON_FullMethodName   = "/daemon.DaemonService/ListActiveTunnelsJSON"
@@ -58,6 +59,7 @@ type DaemonServiceClient interface {
 	DeleteConfiguration(ctx context.Context, in *DeleteConfigurationRequest, opts ...grpc.CallOption) (*DeleteConfigurationResponse, error)
 	DeleteConfigurationJSON(ctx context.Context, in *DeleteConfigurationRequest, opts ...grpc.CallOption) (*MutationResponse, error)
 	StartTunnel(ctx context.Context, in *StartTunnelRequest, opts ...grpc.CallOption) (*StartTunnelResponse, error)
+	StartOneOffTunnel(ctx context.Context, in *StartOneOffTunnelRequest, opts ...grpc.CallOption) (*StartTunnelResponse, error)
 	KillTunnel(ctx context.Context, in *KillTunnelRequest, opts ...grpc.CallOption) (*KillTunnelResponse, error)
 	ListActiveTunnels(ctx context.Context, in *ListActiveTunnelsRequest, opts ...grpc.CallOption) (*ListActiveTunnelsResponse, error)
 	ListActiveTunnelsJSON(ctx context.Context, in *ListActiveTunnelsJSONRequest, opts ...grpc.CallOption) (*ListActiveTunnelsJSONResponse, error)
@@ -175,6 +177,16 @@ func (c *daemonServiceClient) StartTunnel(ctx context.Context, in *StartTunnelRe
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StartTunnelResponse)
 	err := c.cc.Invoke(ctx, DaemonService_StartTunnel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *daemonServiceClient) StartOneOffTunnel(ctx context.Context, in *StartOneOffTunnelRequest, opts ...grpc.CallOption) (*StartTunnelResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StartTunnelResponse)
+	err := c.cc.Invoke(ctx, DaemonService_StartOneOffTunnel_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -325,6 +337,7 @@ type DaemonServiceServer interface {
 	DeleteConfiguration(context.Context, *DeleteConfigurationRequest) (*DeleteConfigurationResponse, error)
 	DeleteConfigurationJSON(context.Context, *DeleteConfigurationRequest) (*MutationResponse, error)
 	StartTunnel(context.Context, *StartTunnelRequest) (*StartTunnelResponse, error)
+	StartOneOffTunnel(context.Context, *StartOneOffTunnelRequest) (*StartTunnelResponse, error)
 	KillTunnel(context.Context, *KillTunnelRequest) (*KillTunnelResponse, error)
 	ListActiveTunnels(context.Context, *ListActiveTunnelsRequest) (*ListActiveTunnelsResponse, error)
 	ListActiveTunnelsJSON(context.Context, *ListActiveTunnelsJSONRequest) (*ListActiveTunnelsJSONResponse, error)
@@ -377,6 +390,9 @@ func (UnimplementedDaemonServiceServer) DeleteConfigurationJSON(context.Context,
 }
 func (UnimplementedDaemonServiceServer) StartTunnel(context.Context, *StartTunnelRequest) (*StartTunnelResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method StartTunnel not implemented")
+}
+func (UnimplementedDaemonServiceServer) StartOneOffTunnel(context.Context, *StartOneOffTunnelRequest) (*StartTunnelResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method StartOneOffTunnel not implemented")
 }
 func (UnimplementedDaemonServiceServer) KillTunnel(context.Context, *KillTunnelRequest) (*KillTunnelResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method KillTunnel not implemented")
@@ -614,6 +630,24 @@ func _DaemonService_StartTunnel_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DaemonServiceServer).StartTunnel(ctx, req.(*StartTunnelRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DaemonService_StartOneOffTunnel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartOneOffTunnelRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DaemonServiceServer).StartOneOffTunnel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DaemonService_StartOneOffTunnel_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DaemonServiceServer).StartOneOffTunnel(ctx, req.(*StartOneOffTunnelRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -898,6 +932,10 @@ var DaemonService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StartTunnel",
 			Handler:    _DaemonService_StartTunnel_Handler,
+		},
+		{
+			MethodName: "StartOneOffTunnel",
+			Handler:    _DaemonService_StartOneOffTunnel_Handler,
 		},
 		{
 			MethodName: "KillTunnel",

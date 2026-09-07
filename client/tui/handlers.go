@@ -78,7 +78,7 @@ func startOrKillSelected(s *State, e configmanager.Entry) {
 	var msg string
 	var err error
 
-	if s.IsActive(e.Name) {
+	if s.IsActive(e.ID) {
 		msg, err = KillTunnel(e.Name, 0) // let daemon find the port
 		if err != nil {
 			showError(s, err)
@@ -107,11 +107,7 @@ func startOrKillSelected(s *State, e configmanager.Entry) {
 		s.LogError("Active refresh error: %v", err)
 		return
 	}
-	m := map[string]int{}
-	for _, a := range acts {
-		m[a.Name] = a.LocalPort
-	}
-	s.Active = m
+	s.Active = activeProfiles(s.Configs, acts)
 	decorateListActive(s)
 	updateStatus(s)
 

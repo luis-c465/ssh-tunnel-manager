@@ -153,7 +153,7 @@ func showDeleteConfirm(s *State, entry configmanager.Entry) {
 func showMachineManager(s *State) {
 	machines := sortedMachines(s.Machines)
 	list := tview.NewList().ShowSecondaryText(true)
-	list.SetBorder(true).SetTitle(" Machines (a add, e edit, d delete, Esc close) ")
+	list.SetBorder(true).SetTitle(" Machines (a add, e edit, t tunnel, k kill one-off, d delete, Esc close) ")
 	for _, machine := range machines {
 		list.AddItem(machine.Name, fmt.Sprintf("%s as %s", machine.Server, machine.User), 0, nil)
 	}
@@ -172,6 +172,14 @@ func showMachineManager(s *State) {
 				showMachineForm(s, machines[index], true)
 			}
 			return nil
+		case 't':
+			if index := list.GetCurrentItem(); index >= 0 && index < len(machines) {
+				showOneOffTunnelForm(s, machines[index])
+			}
+			return nil
+		case 'k':
+			showOneOffTunnelList(s)
+			return nil
 		case 'd':
 			if index := list.GetCurrentItem(); index >= 0 && index < len(machines) {
 				showMachineDeleteConfirm(s, machines[index])
@@ -184,6 +192,101 @@ func showMachineManager(s *State) {
 		return event
 	})
 	addModalPage(s, list)
+}
+
+func showOneOffTunnelList(s *State) {
+	active, err := LoadActive()
+	if err != nil {
+		showError(s, err)
+		return
+	}
+	list := tview.NewList().ShowSecondaryText(true)
+	list.SetBorder(true).SetTitle(" One-off tunnels (Enter/k kill, Esc close) ")
+	oneOffs := make([]Active, 0)
+	for _, tunnel := range active {
+		if tunnel.IsOneOff {
+			oneOffs = append(oneOffs, tunnel)
+			list.AddItem(fmt.Sprintf(":%d", tunnel.LocalPort), tunnel.Name+" → "+tunnel.RemoteAddr, 0, nil)
+		}
+	}
+	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape || event.Rune() == 'q' {
+			showMachineManager(s)
+			return nil
+		}
+		if event.Key() == tcell.KeyEnter || event.Rune() == 'k' {
+			index := list.GetCurrentItem()
+			if index < 0 || index >= len(oneOffs) {
+				return nil
+			}
+			if _, err := KillTunnel("", oneOffs[index].LocalPort); err != nil {
+				showError(s, err)
+				return nil
+			}
+			if err := s.ReloadData(); err != nil {
+				showError(s, err)
+				return nil
+			}
+			showOneOffTunnelList(s)
+			return nil
+		}
+		return event
+	})
+	addModalPage(s, list)
+}
+
+func showOneOffTunnelForm(s *State, machine configmanager.Machine) {
+	form, collect := buildOneOffTunnelForm()
+	form.AddButton("Start", func() {
+		remoteHost, remotePort, localPort, err := collect()
+		if err != nil {
+			showError(s, err)
+			return
+		}
+		if _, err := StartOneOffTunnel(machine.ID, remoteHost, remotePort, localPort); err != nil {
+			showError(s, err)
+			return
+		}
+		if err := s.ReloadData(); err != nil {
+			showError(s, err)
+			return
+		}
+		populateList(s)
+		updateStatus(s)
+		showMachineManager(s)
+	})
+	form.AddButton("Cancel", func() { showMachineManager(s) })
+	form.SetButtonsAlign(tview.AlignCenter)
+	form.SetBorder(true).SetTitle(fmt.Sprintf(" Start tunnel on %s ", machine.Name))
+	addModalPage(s, form)
+}
+
+func buildOneOffTunnelForm() (*tview.Form, func() (string, int, int, error)) {
+	form := tview.NewForm()
+	form.SetItemPadding(1)
+	remoteHost := tview.NewInputField().SetLabel("LocalHost (optional)")
+	remotePort := tview.NewInputField().SetLabel("RemotePort")
+	localPort := tview.NewInputField().SetLabel("LocalPort (0=auto)")
+	for _, item := range []tview.FormItem{remoteHost, remotePort, localPort} {
+		form.AddFormItem(item)
+	}
+	configureFormNavigation(form)
+
+	return form, func() (string, int, int, error) {
+		remotePortValue, err := strconv.Atoi(strings.TrimSpace(remotePort.GetText()))
+		if err != nil || remotePortValue < 1 || remotePortValue > 65535 {
+			return "", 0, 0, fmt.Errorf("remote port must be between 1 and 65535")
+		}
+		localPortValue := 0
+		if value := strings.TrimSpace(localPort.GetText()); value != "" {
+			localPortValue, err = strconv.Atoi(value)
+			if err != nil || localPortValue < 0 || localPortValue > 65535 {
+				return "", 0, 0, fmt.Errorf("local port must be between 0 and 65535")
+			}
+		}
+		// An empty value is intentionally preserved for the daemon's localhost default.
+		return strings.TrimSpace(remoteHost.GetText()), remotePortValue, localPortValue, nil
+	}
 }
 
 func showMachineForm(s *State, initial configmanager.Machine, editing bool) {

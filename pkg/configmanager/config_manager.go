@@ -58,6 +58,8 @@ type Entry struct {
 	RemoteHost  string `json:"remoteHost"`
 	RemotePort  int    `json:"remotePort"`
 	LocalPort   int    `json:"localPort"`
+	// Ephemeral marks a runtime-only one-off tunnel.
+	Ephemeral bool `json:"-"`
 }
 
 type Entries []Entry

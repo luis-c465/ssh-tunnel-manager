@@ -11,8 +11,12 @@ import (
 )
 
 type Active struct {
-	Name      string
-	LocalPort int
+	Name       string
+	ProfileID  string
+	MachineID  string
+	IsOneOff   bool
+	LocalPort  int
+	RemoteAddr string
 }
 
 func newDaemonClient() (pb.DaemonServiceClient, func(), context.Context, context.CancelFunc, error) {
@@ -291,7 +295,14 @@ func LoadActive() ([]Active, error) {
 
 	active := make([]Active, 0, len(response.GetTunnels()))
 	for _, tunnel := range response.GetTunnels() {
-		active = append(active, Active{Name: tunnel.GetName(), LocalPort: int(tunnel.GetLocalPort())})
+		active = append(active, Active{
+			Name:       tunnel.GetName(),
+			ProfileID:  tunnel.GetProfileId(),
+			MachineID:  tunnel.GetMachineId(),
+			IsOneOff:   tunnel.GetIsOneOff(),
+			LocalPort:  int(tunnel.GetLocalPort()),
+			RemoteAddr: tunnel.GetRemoteAddr(),
+		})
 	}
 	return active, nil
 }
@@ -312,6 +323,34 @@ func StartTunnel(name string, localPort int) (string, error) {
 	}
 	if response == nil {
 		return "", fmt.Errorf("start failed: empty response")
+	}
+	return response.GetResult(), nil
+}
+
+func StartOneOffTunnel(machineID, remoteHost string, remotePort, localPort int) (string, error) {
+	client, cleanup, err := lib.CreateDaemonServiceClient()
+	if err != nil {
+		return "", fmt.Errorf("rpc connect: %w", err)
+	}
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	response, err := client.StartOneOffTunnel(ctx, &pb.StartOneOffTunnelRequest{
+		MachineId:  machineID,
+		RemoteHost: remoteHost,
+		RemotePort: int32(remotePort),
+		LocalPort:  int32(localPort),
+	})
+	if err != nil {
+		return "", fmt.Errorf("start one-off tunnel failed: %w", err)
+	}
+	if response == nil {
+		return "", fmt.Errorf("start one-off tunnel failed: empty response")
+	}
+	if response.GetStatus() == pb.ResponseStatus_Error {
+		return "", fmt.Errorf("%s", response.GetMessage())
 	}
 	return response.GetResult(), nil
 }

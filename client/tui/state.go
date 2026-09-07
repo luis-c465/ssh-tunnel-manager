@@ -51,8 +51,8 @@ func NewState() *State {
 
 func (s *State) Close() { close(s.quitCh) }
 
-func (s *State) IsActive(name string) bool {
-	_, ok := s.Active[name]
+func (s *State) IsActive(profileID string) bool {
+	_, ok := s.Active[profileID]
 	return ok
 }
 
@@ -97,12 +97,18 @@ func (s *State) ReloadData() error {
 	if err != nil {
 		return err
 	}
-	m := map[string]int{}
-	for _, a := range acts {
-		m[a.Name] = a.LocalPort
-	}
-	s.Active = m
+	s.Active = activeProfiles(configs, acts)
 	return nil
+}
+
+func activeProfiles(_ []configmanager.Entry, active []Active) map[string]int {
+	profiles := make(map[string]int)
+	for _, tunnel := range active {
+		if !tunnel.IsOneOff && tunnel.ProfileID != "" {
+			profiles[tunnel.ProfileID] = tunnel.LocalPort
+		}
+	}
+	return profiles
 }
 
 func IsEscape(ev *tcell.EventKey) bool { return ev.Key() == tcell.KeyEscape }

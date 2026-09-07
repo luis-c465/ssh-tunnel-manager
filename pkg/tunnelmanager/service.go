@@ -44,6 +44,47 @@ func (s *tunnelService) StartTunnel(ctx context.Context, configName string, loca
 		}
 		actualPort = int32(port)
 	}
+	return s.startEntry(ctx, cfg, actualPort, true)
+}
+
+// StartOneOffTunnel starts an ephemeral forward using an existing machine. An
+// omitted remoteHost means localhost as seen from the SSH server.
+func (s *tunnelService) StartOneOffTunnel(ctx context.Context, machineID, remoteHost string, remotePort, localPort int32) (string, error) {
+	machine, err := s.cfgMgr.GetMachine(machineID)
+	if err != nil {
+		return "", fmt.Errorf("couldn't get machine %q: %w", machineID, err)
+	}
+	if remoteHost == "" {
+		remoteHost = "localhost"
+	}
+	if remotePort < 1 || remotePort > 65535 {
+		return "", fmt.Errorf("remote port must be between 1 and 65535")
+	}
+	if localPort < 0 || localPort > 65535 {
+		return "", fmt.Errorf("local port must be between 0 and 65535")
+	}
+	if localPort == 0 {
+		port, err := s.generateRandomPort()
+		if err != nil {
+			return "", fmt.Errorf("failed to generate random port: %w", err)
+		}
+		localPort = int32(port)
+	}
+	entry := configmanager.Entry{
+		MachineID:  machine.ID,
+		Name:       fmt.Sprintf("one-off on %s", machine.Name),
+		Server:     machine.Server,
+		User:       machine.User,
+		KeyFile:    machine.KeyFile,
+		RemoteHost: remoteHost,
+		RemotePort: int(remotePort),
+		LocalPort:  int(localPort),
+		Ephemeral:  true,
+	}
+	return s.startEntry(ctx, entry, localPort, false)
+}
+
+func (s *tunnelService) startEntry(ctx context.Context, cfg configmanager.Entry, actualPort int32, persist bool) (string, error) {
 	if _, exists := s.manager.GetConnection(int(actualPort)); exists {
 		return fmt.Sprintf("\nCannot start tunnel as connection is already open on port %d\n", actualPort), nil
 	}
@@ -75,11 +116,13 @@ func (s *tunnelService) StartTunnel(ctx context.Context, configName string, loca
 			return output.String(), ctx.Err()
 		}
 	}
-	if err := s.PersistTunnels(); err != nil {
-		return output.String(), err
+	if persist {
+		if err := s.PersistTunnels(); err != nil {
+			return output.String(), err
+		}
 	}
 	if tunnelErr != nil {
-		return output.String(), fmt.Errorf("start tunnel %q: %w", configName, tunnelErr)
+		return output.String(), fmt.Errorf("start tunnel %q: %w", cfg.Name, tunnelErr)
 	}
 	return output.String(), nil
 }
@@ -121,7 +164,7 @@ func (s *tunnelService) StopTunnel(ctx context.Context, configName string, local
 func (s *tunnelService) ListActiveTunnels(ctx context.Context) ([]ActiveTunnel, error) {
 	tunnels := make([]ActiveTunnel, 0)
 	for port, ci := range s.manager.ConnectionsSnapshot() {
-		tunnels = append(tunnels, ActiveTunnel{ProfileID: ci.Config.ID, MachineID: ci.Config.MachineID, ConfigName: ci.Config.Name, LocalPort: port, LocalAddr: ci.LocalAddr, RemoteAddr: ci.RemoteAddr, Server: ci.Config.Server, User: ci.Config.User})
+		tunnels = append(tunnels, ActiveTunnel{ProfileID: ci.Config.ID, MachineID: ci.Config.MachineID, ConfigName: ci.Config.Name, OneOff: ci.Config.Ephemeral, LocalPort: port, LocalAddr: ci.LocalAddr, RemoteAddr: ci.RemoteAddr, Server: ci.Config.Server, User: ci.Config.User})
 	}
 	return tunnels, nil
 }

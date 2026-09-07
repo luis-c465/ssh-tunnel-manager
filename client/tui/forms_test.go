@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/besrabasant/ssh-tunnel-manager/pkg/configmanager"
+	"github.com/rivo/tview"
 )
 
 func TestProfileFormKeepsMachineSelectionSeparate(t *testing.T) {
@@ -49,5 +50,21 @@ func TestProfileFormRequiresMachine(t *testing.T) {
 
 	if _, err := collect(); err == nil {
 		t.Fatal("expected profile form without a machine to fail")
+	}
+}
+
+func TestOneOffTunnelFormPreservesEmptyLocalHost(t *testing.T) {
+	form, collect := buildOneOffTunnelForm()
+	form.GetFormItem(1).(*tview.InputField).SetText("5432")
+
+	localHost, remotePort, localPort, err := collect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if localHost != "" {
+		t.Fatalf("local host = %q, want empty", localHost)
+	}
+	if remotePort != 5432 || localPort != 0 {
+		t.Fatalf("tunnel = (%d, %d), want (5432, 0)", remotePort, localPort)
 	}
 }

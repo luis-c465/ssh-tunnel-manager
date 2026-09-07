@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ func newMachineCommand() *cobra.Command {
 	machineCmd.AddCommand(newMachineAddCommand())
 	machineCmd.AddCommand(newMachineEditCommand())
 	machineCmd.AddCommand(newMachineDeleteCommand())
+	machineCmd.AddCommand(newMachineTunnelCommand())
 	return machineCmd
 }
 
@@ -60,6 +62,67 @@ func newMachineListCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newMachineTunnelCommand() *cobra.Command {
+	var localHost string
+	command := &cobra.Command{
+		Use:   "tunnel <machine> <remote-port> [local-port]",
+		Short: "Start a one-off tunnel through an SSH machine",
+		Args:  cobra.RangeArgs(2, 3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			remotePort, err := parseOneOffPort("remote port", args[1], false)
+			if err != nil {
+				return err
+			}
+			localPort := 0
+			if len(args) == 3 {
+				localPort, err = parseOneOffPort("local port", args[2], true)
+				if err != nil {
+					return err
+				}
+			}
+
+			client, cleanup, err := lib.CreateDaemonServiceClient()
+			if err != nil {
+				return fmt.Errorf("connect to daemon: %w", err)
+			}
+			defer cleanup()
+			machine, err := findMachine(cmd.Context(), client, args[0])
+			if err != nil {
+				return err
+			}
+			ctx, cancel := context.WithTimeout(cmd.Context(), 20*time.Second)
+			defer cancel()
+			response, err := client.StartOneOffTunnel(ctx, &rpc.StartOneOffTunnelRequest{
+				MachineId: machine.GetId(), RemoteHost: strings.TrimSpace(localHost), RemotePort: int32(remotePort), LocalPort: int32(localPort),
+			})
+			if err != nil {
+				return fmt.Errorf("start one-off tunnel: %w", err)
+			}
+			if response == nil {
+				return fmt.Errorf("start one-off tunnel: empty response")
+			}
+			if response.GetStatus() == rpc.ResponseStatus_Error {
+				return responseError("start one-off tunnel", response.GetMessage())
+			}
+			fmt.Fprint(cmd.OutOrStdout(), response.GetResult())
+			return nil
+		},
+	}
+	command.Flags().StringVar(&localHost, "local-host", "", "Destination host on the SSH machine (default localhost)")
+	return command
+}
+
+func parseOneOffPort(label, value string, allowZero bool) (int, error) {
+	port, err := strconv.Atoi(value)
+	if err != nil || port < 0 || port > 65535 || (!allowZero && port == 0) {
+		if allowZero {
+			return 0, fmt.Errorf("%s must be an integer between 0 and 65535", label)
+		}
+		return 0, fmt.Errorf("%s must be an integer between 1 and 65535", label)
+	}
+	return port, nil
 }
 
 func newMachineAddCommand() *cobra.Command {

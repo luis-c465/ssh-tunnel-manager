@@ -144,7 +144,7 @@ func populateList(s *State) {
 	items := s.Filtered()
 	for _, e := range items {
 		marker := "[gray]○ [-]"
-		if s.IsActive(e.Name) {
+		if s.IsActive(e.ID) {
 			marker = "[green]● [-]"
 		}
 		main := marker + " " + e.Name
@@ -172,7 +172,7 @@ func decorateListActive(s *State) {
 	items := s.Filtered()
 	for _, e := range items {
 		marker := "[gray]○ [-]"
-		if s.IsActive(e.Name) {
+		if s.IsActive(e.ID) {
 			marker = "[green]● [-]"
 		}
 		main := marker + " " + e.Name
@@ -199,7 +199,7 @@ func updateDetail(s *State) {
 	}
 
 	var statusVal string
-	if active := s.IsActive(e.Name); active {
+	if active := s.IsActive(e.ID); active {
 		statusVal = "[green::b]ACTIVE[::-]"
 	} else {
 		statusVal = "[gray]idle[-]"

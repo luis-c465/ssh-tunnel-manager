@@ -36,6 +36,9 @@ func ListActiveTunnelsTask(ctx context.Context, req *rpc.ListActiveTunnelsReques
 			RemoteAddr: t.RemoteAddr,
 			LocalAddr:  t.LocalAddr,
 			Server:     t.Server,
+			MachineId:  t.MachineID,
+			ProfileId:  t.ProfileID,
+			IsOneOff:   t.OneOff,
 		})
 	}
 

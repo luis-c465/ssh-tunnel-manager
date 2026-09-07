@@ -11,6 +11,7 @@ import (
 // ActiveTunnel represents a tunnel that should be restored on restart.
 type ActiveTunnel struct {
 	ProfileID  string `json:"profile_id,omitempty"`
+	OneOff     bool   `json:"one_off,omitempty"`
 	MachineID  string `json:"machine_id,omitempty"`
 	ConfigName string `json:"config_name"`
 	LocalPort  int    `json:"local_port"`
@@ -27,6 +28,10 @@ func (m *tunnelManager) SaveActiveTunnels(path string) error {
 	savedAt := time.Now().UTC().Format(time.RFC3339)
 	m.Mutex.RLock()
 	for port, ci := range m.Connections {
+		// One-off tunnels are intentionally ephemeral.
+		if ci.Config.Ephemeral {
+			continue
+		}
 		tunnels = append(tunnels, ActiveTunnel{
 			ProfileID:  ci.Config.ID,
 			MachineID:  ci.Config.MachineID,

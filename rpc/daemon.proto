@@ -25,6 +25,8 @@ service DaemonService {
 
   rpc StartTunnel (StartTunnelRequest) returns (StartTunnelResponse) {}
 
+  rpc StartOneOffTunnel (StartOneOffTunnelRequest) returns (StartTunnelResponse) {}
+
   rpc KillTunnel (KillTunnelRequest) returns (KillTunnelResponse) {}
 
   rpc ListActiveTunnels (ListActiveTunnelsRequest) returns (ListActiveTunnelsResponse) {}
@@ -218,6 +220,15 @@ message StartTunnelResponse {
   repeated string events = 4;
 }
 
+// Starts an ephemeral tunnel through a saved machine. remote_host defaults to
+// localhost on the SSH server when omitted.
+message StartOneOffTunnelRequest {
+  string machine_id = 1;
+  string remote_host = 2;
+  int32 remote_port = 3;
+  int32 local_port = 4;
+}
+
 message ListActiveTunnelsRequest {}
 
 message ListActiveTunnelsResponse {
@@ -231,6 +242,9 @@ message ActiveTunnel {
   string remote_addr = 3;
   string local_addr  = 4;
   string server      = 5;
+  string machine_id  = 6;
+  string profile_id  = 7;
+  bool is_one_off    = 8;
 }
 
 message ListActiveTunnelsJSONRequest {}

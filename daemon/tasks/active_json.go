@@ -17,6 +17,9 @@ func ListActiveTunnelsJSONTask(ctx context.Context, _ *pb.ListActiveTunnelsJSONR
 			RemoteAddr: conn.RemoteAddr,
 			LocalAddr:  conn.LocalAddr,
 			Server:     conn.Config.Server,
+			MachineId:  conn.Config.MachineID,
+			ProfileId:  conn.Config.ID,
+			IsOneOff:   conn.Config.Ephemeral,
 		})
 	}
 	return resp, nil

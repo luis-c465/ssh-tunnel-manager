@@ -15,3 +15,12 @@ func StartTunnelTask(ctx context.Context, req *rpc.StartTunnelRequest, service t
 	status, events := operationParts(result)
 	return &rpc.StartTunnelResponse{Result: result, Status: status, Events: events}, nil
 }
+
+func StartOneOffTunnelTask(ctx context.Context, req *rpc.StartOneOffTunnelRequest, service tunnelmanager.TunnelService) (*rpc.StartTunnelResponse, error) {
+	result, err := service.StartOneOffTunnel(ctx, req.MachineId, req.RemoteHost, req.RemotePort, req.LocalPort)
+	if err != nil {
+		return nil, err
+	}
+	status, events := operationParts(result)
+	return &rpc.StartTunnelResponse{Result: result, Status: status, Events: events}, nil
+}

@@ -1739,6 +1739,76 @@ func (x *StartTunnelResponse) GetEvents() []string {
 	return nil
 }
 
+// Starts an ephemeral tunnel through a saved machine. remote_host defaults to
+// localhost on the SSH server when omitted.
+type StartOneOffTunnelRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MachineId     string                 `protobuf:"bytes,1,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	RemoteHost    string                 `protobuf:"bytes,2,opt,name=remote_host,json=remoteHost,proto3" json:"remote_host,omitempty"`
+	RemotePort    int32                  `protobuf:"varint,3,opt,name=remote_port,json=remotePort,proto3" json:"remote_port,omitempty"`
+	LocalPort     int32                  `protobuf:"varint,4,opt,name=local_port,json=localPort,proto3" json:"local_port,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartOneOffTunnelRequest) Reset() {
+	*x = StartOneOffTunnelRequest{}
+	mi := &file_rpc_daemon_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartOneOffTunnelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartOneOffTunnelRequest) ProtoMessage() {}
+
+func (x *StartOneOffTunnelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rpc_daemon_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartOneOffTunnelRequest.ProtoReflect.Descriptor instead.
+func (*StartOneOffTunnelRequest) Descriptor() ([]byte, []int) {
+	return file_rpc_daemon_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *StartOneOffTunnelRequest) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *StartOneOffTunnelRequest) GetRemoteHost() string {
+	if x != nil {
+		return x.RemoteHost
+	}
+	return ""
+}
+
+func (x *StartOneOffTunnelRequest) GetRemotePort() int32 {
+	if x != nil {
+		return x.RemotePort
+	}
+	return 0
+}
+
+func (x *StartOneOffTunnelRequest) GetLocalPort() int32 {
+	if x != nil {
+		return x.LocalPort
+	}
+	return 0
+}
+
 type ListActiveTunnelsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1747,7 +1817,7 @@ type ListActiveTunnelsRequest struct {
 
 func (x *ListActiveTunnelsRequest) Reset() {
 	*x = ListActiveTunnelsRequest{}
-	mi := &file_rpc_daemon_proto_msgTypes[30]
+	mi := &file_rpc_daemon_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1759,7 +1829,7 @@ func (x *ListActiveTunnelsRequest) String() string {
 func (*ListActiveTunnelsRequest) ProtoMessage() {}
 
 func (x *ListActiveTunnelsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_daemon_proto_msgTypes[30]
+	mi := &file_rpc_daemon_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1772,7 +1842,7 @@ func (x *ListActiveTunnelsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListActiveTunnelsRequest.ProtoReflect.Descriptor instead.
 func (*ListActiveTunnelsRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_daemon_proto_rawDescGZIP(), []int{30}
+	return file_rpc_daemon_proto_rawDescGZIP(), []int{31}
 }
 
 type ListActiveTunnelsResponse struct {
@@ -1785,7 +1855,7 @@ type ListActiveTunnelsResponse struct {
 
 func (x *ListActiveTunnelsResponse) Reset() {
 	*x = ListActiveTunnelsResponse{}
-	mi := &file_rpc_daemon_proto_msgTypes[31]
+	mi := &file_rpc_daemon_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1797,7 +1867,7 @@ func (x *ListActiveTunnelsResponse) String() string {
 func (*ListActiveTunnelsResponse) ProtoMessage() {}
 
 func (x *ListActiveTunnelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_daemon_proto_msgTypes[31]
+	mi := &file_rpc_daemon_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1810,7 +1880,7 @@ func (x *ListActiveTunnelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListActiveTunnelsResponse.ProtoReflect.Descriptor instead.
 func (*ListActiveTunnelsResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_daemon_proto_rawDescGZIP(), []int{31}
+	return file_rpc_daemon_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListActiveTunnelsResponse) GetResult() string {
@@ -1834,13 +1904,16 @@ type ActiveTunnel struct {
 	RemoteAddr    string                 `protobuf:"bytes,3,opt,name=remote_addr,json=remoteAddr,proto3" json:"remote_addr,omitempty"`
 	LocalAddr     string                 `protobuf:"bytes,4,opt,name=local_addr,json=localAddr,proto3" json:"local_addr,omitempty"`
 	Server        string                 `protobuf:"bytes,5,opt,name=server,proto3" json:"server,omitempty"`
+	MachineId     string                 `protobuf:"bytes,6,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	ProfileId     string                 `protobuf:"bytes,7,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	IsOneOff      bool                   `protobuf:"varint,8,opt,name=is_one_off,json=isOneOff,proto3" json:"is_one_off,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ActiveTunnel) Reset() {
 	*x = ActiveTunnel{}
-	mi := &file_rpc_daemon_proto_msgTypes[32]
+	mi := &file_rpc_daemon_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1852,7 +1925,7 @@ func (x *ActiveTunnel) String() string {
 func (*ActiveTunnel) ProtoMessage() {}
 
 func (x *ActiveTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_daemon_proto_msgTypes[32]
+	mi := &file_rpc_daemon_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1865,7 +1938,7 @@ func (x *ActiveTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActiveTunnel.ProtoReflect.Descriptor instead.
 func (*ActiveTunnel) Descriptor() ([]byte, []int) {
-	return file_rpc_daemon_proto_rawDescGZIP(), []int{32}
+	return file_rpc_daemon_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ActiveTunnel) GetName() string {
@@ -1903,6 +1976,27 @@ func (x *ActiveTunnel) GetServer() string {
 	return ""
 }
 
+func (x *ActiveTunnel) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *ActiveTunnel) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *ActiveTunnel) GetIsOneOff() bool {
+	if x != nil {
+		return x.IsOneOff
+	}
+	return false
+}
+
 type ListActiveTunnelsJSONRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1911,7 +2005,7 @@ type ListActiveTunnelsJSONRequest struct {
 
 func (x *ListActiveTunnelsJSONRequest) Reset() {
 	*x = ListActiveTunnelsJSONRequest{}
-	mi := &file_rpc_daemon_proto_msgTypes[33]
+	mi := &file_rpc_daemon_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1923,7 +2017,7 @@ func (x *ListActiveTunnelsJSONRequest) String() string {
 func (*ListActiveTunnelsJSONRequest) ProtoMessage() {}
 
 func (x *ListActiveTunnelsJSONRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_daemon_proto_msgTypes[33]
+	mi := &file_rpc_daemon_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1936,7 +2030,7 @@ func (x *ListActiveTunnelsJSONRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListActiveTunnelsJSONRequest.ProtoReflect.Descriptor instead.
 func (*ListActiveTunnelsJSONRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_daemon_proto_rawDescGZIP(), []int{33}
+	return file_rpc_daemon_proto_rawDescGZIP(), []int{34}
 }
 
 type ListActiveTunnelsJSONResponse struct {
@@ -1948,7 +2042,7 @@ type ListActiveTunnelsJSONResponse struct {
 
 func (x *ListActiveTunnelsJSONResponse) Reset() {
 	*x = ListActiveTunnelsJSONResponse{}
-	mi := &file_rpc_daemon_proto_msgTypes[34]
+	mi := &file_rpc_daemon_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1960,7 +2054,7 @@ func (x *ListActiveTunnelsJSONResponse) String() string {
 func (*ListActiveTunnelsJSONResponse) ProtoMessage() {}
 
 func (x *ListActiveTunnelsJSONResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_daemon_proto_msgTypes[34]
+	mi := &file_rpc_daemon_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1973,7 +2067,7 @@ func (x *ListActiveTunnelsJSONResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListActiveTunnelsJSONResponse.ProtoReflect.Descriptor instead.
 func (*ListActiveTunnelsJSONResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_daemon_proto_rawDescGZIP(), []int{34}
+	return file_rpc_daemon_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ListActiveTunnelsJSONResponse) GetTunnels() []*ActiveTunnel {
@@ -1993,7 +2087,7 @@ type KillTunnelRequest struct {
 
 func (x *KillTunnelRequest) Reset() {
 	*x = KillTunnelRequest{}
-	mi := &file_rpc_daemon_proto_msgTypes[35]
+	mi := &file_rpc_daemon_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2005,7 +2099,7 @@ func (x *KillTunnelRequest) String() string {
 func (*KillTunnelRequest) ProtoMessage() {}
 
 func (x *KillTunnelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_daemon_proto_msgTypes[35]
+	mi := &file_rpc_daemon_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2018,7 +2112,7 @@ func (x *KillTunnelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KillTunnelRequest.ProtoReflect.Descriptor instead.
 func (*KillTunnelRequest) Descriptor() ([]byte, []int) {
-	return file_rpc_daemon_proto_rawDescGZIP(), []int{35}
+	return file_rpc_daemon_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *KillTunnelRequest) GetConfigName() string {
@@ -2046,7 +2140,7 @@ type KillTunnelResponse struct {
 
 func (x *KillTunnelResponse) Reset() {
 	*x = KillTunnelResponse{}
-	mi := &file_rpc_daemon_proto_msgTypes[36]
+	mi := &file_rpc_daemon_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2058,7 +2152,7 @@ func (x *KillTunnelResponse) String() string {
 func (*KillTunnelResponse) ProtoMessage() {}
 
 func (x *KillTunnelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rpc_daemon_proto_msgTypes[36]
+	mi := &file_rpc_daemon_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2071,7 +2165,7 @@ func (x *KillTunnelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KillTunnelResponse.ProtoReflect.Descriptor instead.
 func (*KillTunnelResponse) Descriptor() ([]byte, []int) {
-	return file_rpc_daemon_proto_rawDescGZIP(), []int{36}
+	return file_rpc_daemon_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *KillTunnelResponse) GetResult() string {
@@ -2214,11 +2308,20 @@ const file_rpc_daemon_proto_rawDesc = "" +
 	"\x06result\x18\x01 \x01(\tR\x06result\x12.\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x16.daemon.ResponseStatusR\x06status\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x16\n" +
-	"\x06events\x18\x04 \x03(\tR\x06events\"\x1a\n" +
+	"\x06events\x18\x04 \x03(\tR\x06events\"\x9a\x01\n" +
+	"\x18StartOneOffTunnelRequest\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x01 \x01(\tR\tmachineId\x12\x1f\n" +
+	"\vremote_host\x18\x02 \x01(\tR\n" +
+	"remoteHost\x12\x1f\n" +
+	"\vremote_port\x18\x03 \x01(\x05R\n" +
+	"remotePort\x12\x1d\n" +
+	"\n" +
+	"local_port\x18\x04 \x01(\x05R\tlocalPort\"\x1a\n" +
 	"\x18ListActiveTunnelsRequest\"c\n" +
 	"\x19ListActiveTunnelsResponse\x12\x16\n" +
 	"\x06result\x18\x01 \x01(\tR\x06result\x12.\n" +
-	"\atunnels\x18\x02 \x03(\v2\x14.daemon.ActiveTunnelR\atunnels\"\x99\x01\n" +
+	"\atunnels\x18\x02 \x03(\v2\x14.daemon.ActiveTunnelR\atunnels\"\xf5\x01\n" +
 	"\fActiveTunnel\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
@@ -2227,7 +2330,13 @@ const file_rpc_daemon_proto_rawDesc = "" +
 	"remoteAddr\x12\x1d\n" +
 	"\n" +
 	"local_addr\x18\x04 \x01(\tR\tlocalAddr\x12\x16\n" +
-	"\x06server\x18\x05 \x01(\tR\x06server\"\x1e\n" +
+	"\x06server\x18\x05 \x01(\tR\x06server\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x06 \x01(\tR\tmachineId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\a \x01(\tR\tprofileId\x12\x1c\n" +
+	"\n" +
+	"is_one_off\x18\b \x01(\bR\bisOneOff\"\x1e\n" +
 	"\x1cListActiveTunnelsJSONRequest\"O\n" +
 	"\x1dListActiveTunnelsJSONResponse\x12.\n" +
 	"\atunnels\x18\x01 \x03(\v2\x14.daemon.ActiveTunnelR\atunnels\"S\n" +
@@ -2242,7 +2351,7 @@ const file_rpc_daemon_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\tR\amessage*(\n" +
 	"\x0eResponseStatus\x12\v\n" +
 	"\aSuccess\x10\x00\x12\t\n" +
-	"\x05Error\x10\x012\xcc\x10\n" +
+	"\x05Error\x10\x012\xa2\x11\n" +
 	"\rDaemonService\x12]\n" +
 	"\x12ListConfigurations\x12!.daemon.ListConfigurationsRequest\x1a\".daemon.ListConfigurationsResponse\"\x00\x12i\n" +
 	"\x16ListConfigurationsJSON\x12%.daemon.ListConfigurationsJSONRequest\x1a&.daemon.ListConfigurationsJSONResponse\"\x00\x12g\n" +
@@ -2253,7 +2362,8 @@ const file_rpc_daemon_proto_rawDesc = "" +
 	"\x12FetchConfiguration\x12!.daemon.FetchConfigurationRequest\x1a\".daemon.FetchConfigurationResponse\"\x00\x12`\n" +
 	"\x13DeleteConfiguration\x12\".daemon.DeleteConfigurationRequest\x1a#.daemon.DeleteConfigurationResponse\"\x00\x12Y\n" +
 	"\x17DeleteConfigurationJSON\x12\".daemon.DeleteConfigurationRequest\x1a\x18.daemon.MutationResponse\"\x00\x12H\n" +
-	"\vStartTunnel\x12\x1a.daemon.StartTunnelRequest\x1a\x1b.daemon.StartTunnelResponse\"\x00\x12E\n" +
+	"\vStartTunnel\x12\x1a.daemon.StartTunnelRequest\x1a\x1b.daemon.StartTunnelResponse\"\x00\x12T\n" +
+	"\x11StartOneOffTunnel\x12 .daemon.StartOneOffTunnelRequest\x1a\x1b.daemon.StartTunnelResponse\"\x00\x12E\n" +
 	"\n" +
 	"KillTunnel\x12\x19.daemon.KillTunnelRequest\x1a\x1a.daemon.KillTunnelResponse\"\x00\x12Z\n" +
 	"\x11ListActiveTunnels\x12 .daemon.ListActiveTunnelsRequest\x1a!.daemon.ListActiveTunnelsResponse\"\x00\x12f\n" +
@@ -2284,7 +2394,7 @@ func file_rpc_daemon_proto_rawDescGZIP() []byte {
 }
 
 var file_rpc_daemon_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_rpc_daemon_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
+var file_rpc_daemon_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_rpc_daemon_proto_goTypes = []any{
 	(ResponseStatus)(0),                      // 0: daemon.ResponseStatus
 	(*TunnelConfig)(nil),                     // 1: daemon.TunnelConfig
@@ -2317,13 +2427,14 @@ var file_rpc_daemon_proto_goTypes = []any{
 	(*DeleteConfigurationResponse)(nil),      // 28: daemon.DeleteConfigurationResponse
 	(*StartTunnelRequest)(nil),               // 29: daemon.StartTunnelRequest
 	(*StartTunnelResponse)(nil),              // 30: daemon.StartTunnelResponse
-	(*ListActiveTunnelsRequest)(nil),         // 31: daemon.ListActiveTunnelsRequest
-	(*ListActiveTunnelsResponse)(nil),        // 32: daemon.ListActiveTunnelsResponse
-	(*ActiveTunnel)(nil),                     // 33: daemon.ActiveTunnel
-	(*ListActiveTunnelsJSONRequest)(nil),     // 34: daemon.ListActiveTunnelsJSONRequest
-	(*ListActiveTunnelsJSONResponse)(nil),    // 35: daemon.ListActiveTunnelsJSONResponse
-	(*KillTunnelRequest)(nil),                // 36: daemon.KillTunnelRequest
-	(*KillTunnelResponse)(nil),               // 37: daemon.KillTunnelResponse
+	(*StartOneOffTunnelRequest)(nil),         // 31: daemon.StartOneOffTunnelRequest
+	(*ListActiveTunnelsRequest)(nil),         // 32: daemon.ListActiveTunnelsRequest
+	(*ListActiveTunnelsResponse)(nil),        // 33: daemon.ListActiveTunnelsResponse
+	(*ActiveTunnel)(nil),                     // 34: daemon.ActiveTunnel
+	(*ListActiveTunnelsJSONRequest)(nil),     // 35: daemon.ListActiveTunnelsJSONRequest
+	(*ListActiveTunnelsJSONResponse)(nil),    // 36: daemon.ListActiveTunnelsJSONResponse
+	(*KillTunnelRequest)(nil),                // 37: daemon.KillTunnelRequest
+	(*KillTunnelResponse)(nil),               // 38: daemon.KillTunnelResponse
 }
 var file_rpc_daemon_proto_depIdxs = []int32{
 	2,  // 0: daemon.TunnelProfile.machine:type_name -> daemon.Machine
@@ -2352,8 +2463,8 @@ var file_rpc_daemon_proto_depIdxs = []int32{
 	1,  // 23: daemon.FetchConfigurationResponse.data:type_name -> daemon.TunnelConfig
 	0,  // 24: daemon.DeleteConfigurationResponse.status:type_name -> daemon.ResponseStatus
 	0,  // 25: daemon.StartTunnelResponse.status:type_name -> daemon.ResponseStatus
-	33, // 26: daemon.ListActiveTunnelsResponse.tunnels:type_name -> daemon.ActiveTunnel
-	33, // 27: daemon.ListActiveTunnelsJSONResponse.tunnels:type_name -> daemon.ActiveTunnel
+	34, // 26: daemon.ListActiveTunnelsResponse.tunnels:type_name -> daemon.ActiveTunnel
+	34, // 27: daemon.ListActiveTunnelsJSONResponse.tunnels:type_name -> daemon.ActiveTunnel
 	0,  // 28: daemon.KillTunnelResponse.status:type_name -> daemon.ResponseStatus
 	18, // 29: daemon.DaemonService.ListConfigurations:input_type -> daemon.ListConfigurationsRequest
 	20, // 30: daemon.DaemonService.ListConfigurationsJSON:input_type -> daemon.ListConfigurationsJSONRequest
@@ -2365,44 +2476,46 @@ var file_rpc_daemon_proto_depIdxs = []int32{
 	27, // 36: daemon.DaemonService.DeleteConfiguration:input_type -> daemon.DeleteConfigurationRequest
 	27, // 37: daemon.DaemonService.DeleteConfigurationJSON:input_type -> daemon.DeleteConfigurationRequest
 	29, // 38: daemon.DaemonService.StartTunnel:input_type -> daemon.StartTunnelRequest
-	36, // 39: daemon.DaemonService.KillTunnel:input_type -> daemon.KillTunnelRequest
-	31, // 40: daemon.DaemonService.ListActiveTunnels:input_type -> daemon.ListActiveTunnelsRequest
-	34, // 41: daemon.DaemonService.ListActiveTunnelsJSON:input_type -> daemon.ListActiveTunnelsJSONRequest
-	4,  // 42: daemon.DaemonService.ListMachines:input_type -> daemon.ListMachinesRequest
-	6,  // 43: daemon.DaemonService.GetMachine:input_type -> daemon.GetMachineRequest
-	8,  // 44: daemon.DaemonService.AddMachine:input_type -> daemon.MachineMutationRequest
-	8,  // 45: daemon.DaemonService.UpdateMachine:input_type -> daemon.MachineMutationRequest
-	10, // 46: daemon.DaemonService.DeleteMachine:input_type -> daemon.DeleteMachineRequest
-	11, // 47: daemon.DaemonService.ListTunnelProfiles:input_type -> daemon.ListTunnelProfilesRequest
-	13, // 48: daemon.DaemonService.GetTunnelProfile:input_type -> daemon.GetTunnelProfileRequest
-	15, // 49: daemon.DaemonService.AddTunnelProfile:input_type -> daemon.TunnelProfileMutationRequest
-	15, // 50: daemon.DaemonService.UpdateTunnelProfile:input_type -> daemon.TunnelProfileMutationRequest
-	17, // 51: daemon.DaemonService.DeleteTunnelProfile:input_type -> daemon.DeleteTunnelProfileRequest
-	19, // 52: daemon.DaemonService.ListConfigurations:output_type -> daemon.ListConfigurationsResponse
-	21, // 53: daemon.DaemonService.ListConfigurationsJSON:output_type -> daemon.ListConfigurationsJSONResponse
-	24, // 54: daemon.DaemonService.AddConfiguration:output_type -> daemon.AddOrUpdateConfigurationResponse
-	22, // 55: daemon.DaemonService.AddConfigurationJSON:output_type -> daemon.MutationResponse
-	24, // 56: daemon.DaemonService.UpdateConfiguration:output_type -> daemon.AddOrUpdateConfigurationResponse
-	22, // 57: daemon.DaemonService.UpdateConfigurationJSON:output_type -> daemon.MutationResponse
-	26, // 58: daemon.DaemonService.FetchConfiguration:output_type -> daemon.FetchConfigurationResponse
-	28, // 59: daemon.DaemonService.DeleteConfiguration:output_type -> daemon.DeleteConfigurationResponse
-	22, // 60: daemon.DaemonService.DeleteConfigurationJSON:output_type -> daemon.MutationResponse
-	30, // 61: daemon.DaemonService.StartTunnel:output_type -> daemon.StartTunnelResponse
-	37, // 62: daemon.DaemonService.KillTunnel:output_type -> daemon.KillTunnelResponse
-	32, // 63: daemon.DaemonService.ListActiveTunnels:output_type -> daemon.ListActiveTunnelsResponse
-	35, // 64: daemon.DaemonService.ListActiveTunnelsJSON:output_type -> daemon.ListActiveTunnelsJSONResponse
-	5,  // 65: daemon.DaemonService.ListMachines:output_type -> daemon.ListMachinesResponse
-	7,  // 66: daemon.DaemonService.GetMachine:output_type -> daemon.GetMachineResponse
-	9,  // 67: daemon.DaemonService.AddMachine:output_type -> daemon.MachineMutationResponse
-	9,  // 68: daemon.DaemonService.UpdateMachine:output_type -> daemon.MachineMutationResponse
-	9,  // 69: daemon.DaemonService.DeleteMachine:output_type -> daemon.MachineMutationResponse
-	12, // 70: daemon.DaemonService.ListTunnelProfiles:output_type -> daemon.ListTunnelProfilesResponse
-	14, // 71: daemon.DaemonService.GetTunnelProfile:output_type -> daemon.GetTunnelProfileResponse
-	16, // 72: daemon.DaemonService.AddTunnelProfile:output_type -> daemon.TunnelProfileMutationResponse
-	16, // 73: daemon.DaemonService.UpdateTunnelProfile:output_type -> daemon.TunnelProfileMutationResponse
-	16, // 74: daemon.DaemonService.DeleteTunnelProfile:output_type -> daemon.TunnelProfileMutationResponse
-	52, // [52:75] is the sub-list for method output_type
-	29, // [29:52] is the sub-list for method input_type
+	31, // 39: daemon.DaemonService.StartOneOffTunnel:input_type -> daemon.StartOneOffTunnelRequest
+	37, // 40: daemon.DaemonService.KillTunnel:input_type -> daemon.KillTunnelRequest
+	32, // 41: daemon.DaemonService.ListActiveTunnels:input_type -> daemon.ListActiveTunnelsRequest
+	35, // 42: daemon.DaemonService.ListActiveTunnelsJSON:input_type -> daemon.ListActiveTunnelsJSONRequest
+	4,  // 43: daemon.DaemonService.ListMachines:input_type -> daemon.ListMachinesRequest
+	6,  // 44: daemon.DaemonService.GetMachine:input_type -> daemon.GetMachineRequest
+	8,  // 45: daemon.DaemonService.AddMachine:input_type -> daemon.MachineMutationRequest
+	8,  // 46: daemon.DaemonService.UpdateMachine:input_type -> daemon.MachineMutationRequest
+	10, // 47: daemon.DaemonService.DeleteMachine:input_type -> daemon.DeleteMachineRequest
+	11, // 48: daemon.DaemonService.ListTunnelProfiles:input_type -> daemon.ListTunnelProfilesRequest
+	13, // 49: daemon.DaemonService.GetTunnelProfile:input_type -> daemon.GetTunnelProfileRequest
+	15, // 50: daemon.DaemonService.AddTunnelProfile:input_type -> daemon.TunnelProfileMutationRequest
+	15, // 51: daemon.DaemonService.UpdateTunnelProfile:input_type -> daemon.TunnelProfileMutationRequest
+	17, // 52: daemon.DaemonService.DeleteTunnelProfile:input_type -> daemon.DeleteTunnelProfileRequest
+	19, // 53: daemon.DaemonService.ListConfigurations:output_type -> daemon.ListConfigurationsResponse
+	21, // 54: daemon.DaemonService.ListConfigurationsJSON:output_type -> daemon.ListConfigurationsJSONResponse
+	24, // 55: daemon.DaemonService.AddConfiguration:output_type -> daemon.AddOrUpdateConfigurationResponse
+	22, // 56: daemon.DaemonService.AddConfigurationJSON:output_type -> daemon.MutationResponse
+	24, // 57: daemon.DaemonService.UpdateConfiguration:output_type -> daemon.AddOrUpdateConfigurationResponse
+	22, // 58: daemon.DaemonService.UpdateConfigurationJSON:output_type -> daemon.MutationResponse
+	26, // 59: daemon.DaemonService.FetchConfiguration:output_type -> daemon.FetchConfigurationResponse
+	28, // 60: daemon.DaemonService.DeleteConfiguration:output_type -> daemon.DeleteConfigurationResponse
+	22, // 61: daemon.DaemonService.DeleteConfigurationJSON:output_type -> daemon.MutationResponse
+	30, // 62: daemon.DaemonService.StartTunnel:output_type -> daemon.StartTunnelResponse
+	30, // 63: daemon.DaemonService.StartOneOffTunnel:output_type -> daemon.StartTunnelResponse
+	38, // 64: daemon.DaemonService.KillTunnel:output_type -> daemon.KillTunnelResponse
+	33, // 65: daemon.DaemonService.ListActiveTunnels:output_type -> daemon.ListActiveTunnelsResponse
+	36, // 66: daemon.DaemonService.ListActiveTunnelsJSON:output_type -> daemon.ListActiveTunnelsJSONResponse
+	5,  // 67: daemon.DaemonService.ListMachines:output_type -> daemon.ListMachinesResponse
+	7,  // 68: daemon.DaemonService.GetMachine:output_type -> daemon.GetMachineResponse
+	9,  // 69: daemon.DaemonService.AddMachine:output_type -> daemon.MachineMutationResponse
+	9,  // 70: daemon.DaemonService.UpdateMachine:output_type -> daemon.MachineMutationResponse
+	9,  // 71: daemon.DaemonService.DeleteMachine:output_type -> daemon.MachineMutationResponse
+	12, // 72: daemon.DaemonService.ListTunnelProfiles:output_type -> daemon.ListTunnelProfilesResponse
+	14, // 73: daemon.DaemonService.GetTunnelProfile:output_type -> daemon.GetTunnelProfileResponse
+	16, // 74: daemon.DaemonService.AddTunnelProfile:output_type -> daemon.TunnelProfileMutationResponse
+	16, // 75: daemon.DaemonService.UpdateTunnelProfile:output_type -> daemon.TunnelProfileMutationResponse
+	16, // 76: daemon.DaemonService.DeleteTunnelProfile:output_type -> daemon.TunnelProfileMutationResponse
+	53, // [53:77] is the sub-list for method output_type
+	29, // [29:53] is the sub-list for method input_type
 	29, // [29:29] is the sub-list for extension type_name
 	29, // [29:29] is the sub-list for extension extendee
 	0,  // [0:29] is the sub-list for field type_name
@@ -2420,7 +2533,7 @@ func file_rpc_daemon_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rpc_daemon_proto_rawDesc), len(file_rpc_daemon_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   37,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

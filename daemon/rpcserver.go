@@ -60,6 +60,10 @@ func (s *server) StartTunnel(ctx context.Context, req *rpc.StartTunnelRequest) (
 	return tasks.StartTunnelTask(ctx, req, s.service)
 }
 
+func (s *server) StartOneOffTunnel(ctx context.Context, req *rpc.StartOneOffTunnelRequest) (*rpc.StartTunnelResponse, error) {
+	return tasks.StartOneOffTunnelTask(ctx, req, s.service)
+}
+
 func (s *server) KillTunnel(ctx context.Context, req *rpc.KillTunnelRequest) (*rpc.KillTunnelResponse, error) {
 	return tasks.KillTunnelTask(ctx, req, s.service)
 }
