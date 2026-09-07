@@ -51,7 +51,7 @@ sshtm list
 sshtm stop 15432
 ```
 
-`sshtm start <machine> <remote-port>` starts a temporary tunnel through a saved machine. It forwards to `localhost` on that machine and automatically selects a local port. Use `host:port` for another destination, for example `sshtm start my_server db.internal:5432`, or pass `--local-port` to choose the local port. Temporary tunnels are not restored after a daemon restart.
+`sshtm start <machine> <remote-port>` starts a temporary tunnel through a saved machine. It forwards to `localhost` on that machine and uses the remote port locally by default. Use `host:port` for another destination, for example `sshtm start my_server db.internal:5432`, pass `--local-port` to choose another local port, or pass `--local-port 0` to automatically allocate one. Temporary tunnels are not restored after a daemon restart.
 
 A machine stores reusable SSH connection details. A tunnel profile stores a reusable port-forwarding configuration and references a machine. Start one with `sshtm start <profile>`. Manage saved definitions with `sshtm machine` and `sshtm profile`.
 

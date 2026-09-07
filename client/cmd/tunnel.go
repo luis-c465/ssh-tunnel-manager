@@ -25,12 +25,13 @@ func newStartTunnelCommand() *cobra.Command {
 		Long: `Start a saved tunnel profile, or start a temporary tunnel through an SSH machine.
 
 One argument is a profile name. Two arguments select a machine and its destination.
-Temporary tunnels default to localhost on the SSH machine and an automatically
-allocated local port.
+Temporary tunnels default to localhost on the SSH machine and use the remote
+port locally. Pass --local-port 0 to automatically allocate a local port.
 
 Examples:
   sshtm start analytics
   sshtm start bastion 5432
+  sshtm start bastion 5432 --local-port 0
   sshtm start bastion db.internal:5432 --local-port 15432`,
 		Args:          cobra.RangeArgs(1, 2),
 		SilenceErrors: true,
@@ -41,10 +42,10 @@ Examples:
 				}
 				return startProfile(cmd, args[0], localPort, cmd.Flags().Changed("local-port"))
 			}
-			return startMachineTunnel(cmd, args[0], args[1], remoteHost, localPort)
+			return startMachineTunnel(cmd, args[0], args[1], remoteHost, localPort, cmd.Flags().Changed("local-port"))
 		},
 	}
-	command.Flags().IntVar(&localPort, "local-port", 0, "Local port (temporary tunnels default to auto-allocate)")
+	command.Flags().IntVar(&localPort, "local-port", 0, "Local port (temporary tunnels default to the remote port; 0 auto-allocates)")
 	command.Flags().StringVar(&remoteHost, "remote-host", "", "Destination host as seen from the SSH machine (default localhost)")
 	return command
 }
@@ -76,10 +77,13 @@ func startProfile(cmd *cobra.Command, profileName string, localPort int, overrid
 	return nil
 }
 
-func startMachineTunnel(cmd *cobra.Command, machineName, destination, remoteHost string, localPort int) error {
+func startMachineTunnel(cmd *cobra.Command, machineName, destination, remoteHost string, localPort int, localPortSpecified bool) error {
 	host, remotePort, err := parseDestination(destination, remoteHost)
 	if err != nil {
 		return err
+	}
+	if !localPortSpecified {
+		localPort = remotePort
 	}
 	if err := validatePort("local port", localPort, true); err != nil {
 		return err
