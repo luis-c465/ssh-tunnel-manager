@@ -12,6 +12,7 @@ func main() {
 	cmd.SshtmCmd.AddCommand(cmd.ListConfigurationsCmd)
 	cmd.SshtmCmd.AddCommand(cmd.EditConfigurationsCmd)
 	cmd.SshtmCmd.AddCommand(cmd.DeleteConfigurationsCmd)
+	cmd.SshtmCmd.AddCommand(cmd.MachineCmd)
 
 	cmd.SshtmCmd.AddCommand(cmd.StartSshTunnelCmd)
 	cmd.SshtmCmd.AddCommand(cmd.ListActiveSshTunnels)

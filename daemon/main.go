@@ -42,7 +42,7 @@ func main() {
 	defer lis.Close()
 
 	s := grpc.NewServer()
-	rpc.RegisterDaemonServiceServer(s, &server{service: svc})
+	rpc.RegisterDaemonServiceServer(s, &server{service: svc, configManager: cf})
 
 	if err := svc.RestoreTunnels(context.Background()); err != nil {
 		log.Printf("failed to restore tunnels: %v", err)

@@ -48,6 +48,9 @@ func attachHandlers(s *State) {
 		case 'a':
 			showAddForm(s)
 			return nil
+		case 'm':
+			showMachineManager(s)
+			return nil
 		case 'e':
 			if e, ok := s.SelectedEntry(); ok {
 				showEditForm(s, e)
@@ -55,7 +58,7 @@ func attachHandlers(s *State) {
 			return nil
 		case 'd':
 			if e, ok := s.SelectedEntry(); ok {
-				showDeleteConfirm(s, e.Name)
+				showDeleteConfirm(s, e)
 			}
 			return nil
 		case 'g':

@@ -3,10 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
-	"github.com/besrabasant/ssh-tunnel-manager/client/formatters"
 	"github.com/besrabasant/ssh-tunnel-manager/client/lib"
 	"github.com/besrabasant/ssh-tunnel-manager/rpc"
 	"github.com/rivo/tview"
@@ -14,17 +12,16 @@ import (
 )
 
 var EditConfigurationsCmd = &cobra.Command{
-	Use:     "edit <configuration name>",
+	Use:     "edit <profile name>",
 	Aliases: []string{"e"},
-	Short:   "Edit an existing SSH tunnel configuration.",
+	Short:   "Edit an existing SSH tunnel profile.",
 	Long: `
-Edit an existing SSH tunnel configuration interactively.
+Edit an existing tunnel profile interactively.
 
-Use this command to modify the details of a saved SSH tunnel configuration, such as changing the local or remote ports, the SSH server, or any other parameter defined in the configuration. This command provides an interactive interface where you can select the configuration you wish to edit and make changes as required.
+The form edits forwarding settings and lets you select the reusable SSH machine.
+Manage SSH connection details with "sshtm machine edit".
 
-The command requires the name of the configuration as an argument. If the configuration name is not provided or is incorrect, the command will prompt for the correct name. After selecting a configuration, you will be guided through a series of prompts to update the desired fields.
-
-Example Usage:
+Examples:
 - sshtm edit my_configuration
 - sshtm e my_configuration
 `,
@@ -38,49 +35,85 @@ Example Usage:
 		}
 		defer cleanup()
 
-		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
-		defer cancel()
-
-		r, err := c.FetchConfiguration(ctx, &rpc.FetchConfigurationRequest{Name: configName})
-		if err != nil {
-			return fmt.Errorf("fetch configuration: %w", err)
-		}
-		if r.GetStatus() == rpc.ResponseStatus_Error {
-			return fmt.Errorf("fetch configuration: %s", r.GetMessage())
-		}
-
-		data := r.GetData()
-
+		profilesCtx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+		profilesResponse, err := c.ListTunnelProfiles(profilesCtx, &rpc.ListTunnelProfilesRequest{})
 		cancel()
+		if err != nil {
+			return fmt.Errorf("list tunnel profiles: %w", err)
+		}
+		if profilesResponse == nil {
+			return fmt.Errorf("list tunnel profiles: empty response")
+		}
+		if profilesResponse.GetStatus() == rpc.ResponseStatus_Error {
+			return responseError("list tunnel profiles", profilesResponse.GetMessage())
+		}
+
+		var data *rpc.TunnelProfile
+		for _, profile := range profilesResponse.GetTunnelProfiles() {
+			if profile != nil && profile.GetName() == configName {
+				data = profile
+				break
+			}
+		}
+		if data == nil {
+			return fmt.Errorf("tunnel profile %q not found", configName)
+		}
+		if data.GetId() == "" {
+			return fmt.Errorf("tunnel profile %q has no ID", configName)
+		}
+
+		machinesCtx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+		machinesResponse, err := c.ListMachines(machinesCtx, &rpc.ListMachinesRequest{})
+		cancel()
+		if err != nil {
+			return fmt.Errorf("list machines: %w", err)
+		}
+		if machinesResponse == nil {
+			return fmt.Errorf("list machines: empty response")
+		}
+		if machinesResponse.GetStatus() == rpc.ResponseStatus_Error {
+			return responseError("list machines", machinesResponse.GetMessage())
+		}
+		machines := nonNilMachines(machinesResponse.GetMachines())
+		if len(machines) == 0 {
+			return fmt.Errorf("no machines available; run `sshtm machine add` first")
+		}
 
 		app := tview.NewApplication()
-
 		formConfig := lib.ConfigurationFormData{
-			Title:             "Edit configuration",
+			Title:             "Edit tunnel profile",
 			PrimaryBtnLabel:   "Update",
 			SecondaryBtnLabel: "Cancel",
+			DisableName:       true,
 		}
 
 		var callbackErr error
-		editForm := lib.ConfigurationForm(formConfig, app, data, func(data *rpc.TunnelConfig) {
+		editForm := lib.TunnelProfileForm(formConfig, app, data, machines, func(data *rpc.TunnelProfile) {
 			updateCtx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 			defer cancel()
 
-			r, err := c.UpdateConfiguration(updateCtx, &rpc.AddOrUpdateConfigurationRequest{Name: configName, Data: data})
+			r, err := c.UpdateTunnelProfile(updateCtx, &rpc.TunnelProfileMutationRequest{Id: data.GetId(), Data: data})
 			if err != nil {
-				callbackErr = fmt.Errorf("update configuration: %w", err)
+				callbackErr = fmt.Errorf("update tunnel profile: %w", err)
+				return
+			}
+			if r == nil {
+				callbackErr = fmt.Errorf("update tunnel profile: empty response")
 				return
 			}
 			if r.GetStatus() == rpc.ResponseStatus_Error {
-				callbackErr = fmt.Errorf("update configuration: %s", r.GetMessage())
+				callbackErr = responseError("update tunnel profile", r.GetMessage())
 				return
 			}
-
-			fmt.Print(formatters.NewMutationFormatter(os.Stdout).Format(formatters.MutationFromAddOrUpdate(r)))
+			if r.GetMessage() != "" {
+				fmt.Fprintln(cmd.OutOrStdout(), r.GetMessage())
+			} else {
+				fmt.Fprintf(cmd.OutOrStdout(), "Tunnel profile %q updated.\n", data.GetName())
+			}
 		})
 
 		if err := app.SetRoot(editForm, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
-			return fmt.Errorf("run edit configuration form: %w", err)
+			return fmt.Errorf("run edit tunnel profile form: %w", err)
 		}
 		return callbackErr
 	},

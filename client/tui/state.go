@@ -14,6 +14,7 @@ type State struct {
 	App *tview.Application
 
 	ConfigDir string
+	Machines  []configmanager.Machine
 	Configs   []configmanager.Entry
 	Active    map[string]int
 	Filter    string
@@ -82,11 +83,16 @@ func (s *State) Filtered() []configmanager.Entry {
 }
 
 func (s *State) ReloadData() error {
-	cfgs, err := LoadConfigs(s.ConfigDir)
+	machines, err := LoadMachines()
 	if err != nil {
 		return err
 	}
-	s.Configs = cfgs
+	configs, err := LoadTunnelProfiles()
+	if err != nil {
+		return err
+	}
+	s.Machines = machines
+	s.Configs = configs
 	acts, err := LoadActive()
 	if err != nil {
 		return err

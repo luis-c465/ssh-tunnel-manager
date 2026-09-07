@@ -26,9 +26,12 @@ func NewTunnelService(manager TunnelManager, cfgMgr configmanager.ConfigManager,
 }
 
 func (s *tunnelService) StartTunnel(ctx context.Context, configName string, localPort int32) (string, error) {
-	cfg, err := s.cfgMgr.GetConfiguration(configName)
+	cfg, err := s.cfgMgr.ResolveTunnelProfile(configName)
 	if err != nil {
-		return "", fmt.Errorf("couldn't get configuration %q: %w", configName, err)
+		cfg, err = s.cfgMgr.GetConfiguration(configName)
+		if err != nil {
+			return "", fmt.Errorf("couldn't get configuration %q: %w", configName, err)
+		}
 	}
 	actualPort := localPort
 	if actualPort == -1 {
@@ -87,7 +90,7 @@ func (s *tunnelService) StopTunnel(ctx context.Context, configName string, local
 	var found bool
 	if configName != "" {
 		for port, candidate := range s.manager.ConnectionsSnapshot() {
-			if candidate.Config.Name == configName {
+			if candidate.Config.Name == configName || candidate.Config.ID == configName {
 				connPort, info, found = port, candidate, true
 				break
 			}
@@ -118,7 +121,7 @@ func (s *tunnelService) StopTunnel(ctx context.Context, configName string, local
 func (s *tunnelService) ListActiveTunnels(ctx context.Context) ([]ActiveTunnel, error) {
 	tunnels := make([]ActiveTunnel, 0)
 	for port, ci := range s.manager.ConnectionsSnapshot() {
-		tunnels = append(tunnels, ActiveTunnel{ConfigName: ci.Config.Name, LocalPort: port, LocalAddr: ci.LocalAddr, RemoteAddr: ci.RemoteAddr, Server: ci.Config.Server, User: ci.Config.User})
+		tunnels = append(tunnels, ActiveTunnel{ProfileID: ci.Config.ID, MachineID: ci.Config.MachineID, ConfigName: ci.Config.Name, LocalPort: port, LocalAddr: ci.LocalAddr, RemoteAddr: ci.RemoteAddr, Server: ci.Config.Server, User: ci.Config.User})
 	}
 	return tunnels, nil
 }
@@ -133,7 +136,15 @@ func (s *tunnelService) RestoreTunnels(ctx context.Context) error {
 		return err
 	}
 	for _, t := range tunnels {
-		go s.StartTunnel(s.lifetime, t.ConfigName, int32(t.LocalPort))
+		profile := t.ConfigName
+		if t.ProfileID != "" {
+			if _, resolveErr := s.cfgMgr.ResolveTunnelProfile(t.ProfileID); resolveErr == nil {
+				profile = t.ProfileID
+			}
+		}
+		if profile != "" {
+			go s.StartTunnel(s.lifetime, profile, int32(t.LocalPort))
+		}
 	}
 	return nil
 }

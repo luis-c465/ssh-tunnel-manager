@@ -10,6 +10,8 @@ import (
 
 // ActiveTunnel represents a tunnel that should be restored on restart.
 type ActiveTunnel struct {
+	ProfileID  string `json:"profile_id,omitempty"`
+	MachineID  string `json:"machine_id,omitempty"`
 	ConfigName string `json:"config_name"`
 	LocalPort  int    `json:"local_port"`
 	LocalAddr  string `json:"local_addr,omitempty"`
@@ -26,6 +28,8 @@ func (m *tunnelManager) SaveActiveTunnels(path string) error {
 	m.Mutex.RLock()
 	for port, ci := range m.Connections {
 		tunnels = append(tunnels, ActiveTunnel{
+			ProfileID:  ci.Config.ID,
+			MachineID:  ci.Config.MachineID,
 			ConfigName: ci.Config.Name,
 			LocalPort:  port,
 			LocalAddr:  ci.LocalAddr,

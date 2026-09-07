@@ -24,7 +24,7 @@ func applyTheme(s *State) {
 
 func buildUI(s *State) {
 	list := tview.NewList().ShowSecondaryText(true)
-	list.SetBorder(true).SetTitle(" Configurations ")
+	list.SetBorder(true).SetTitle(" Tunnel Profiles ")
 	list.SetSelectedFunc(func(i int, main, secondary string, r rune) {
 		if e, ok := s.SelectedEntry(); ok {
 			startOrKillSelected(s, e)
@@ -119,7 +119,7 @@ func buildUI(s *State) {
 	status := tview.NewTextView().SetDynamicColors(true)
 	status.SetBorder(false)
 	status.SetTextAlign(tview.AlignLeft)
-	status.SetText("     Hints: Up/Down to navigate | Enter: Start/Kill Tunnel | a: add, e: edit, d: delete, r: reload, /: filter, q: quit")
+	status.SetText("     Hints: Up/Down to navigate | Enter: Start/Kill Tunnel | a: add, e: edit, d: delete, m: machines, r: reload, /: filter, q: quit")
 	s.Status = status
 	s.Footer = status
 
@@ -193,7 +193,7 @@ func updateDetail(s *State) {
 	e, ok := s.SelectedEntry()
 	if !ok {
 		s.DetailInfo.Clear()
-		s.DetailInfo.SetCell(0, 0, tview.NewTableCell("No configuration selected.").
+		s.DetailInfo.SetCell(0, 0, tview.NewTableCell("No tunnel profile selected.").
 			SetAttributes(tcell.AttrBold))
 		return
 	}
@@ -205,11 +205,20 @@ func updateDetail(s *State) {
 		statusVal = "[gray]idle[-]"
 	}
 
+	machineName := "Unavailable"
+	for _, machine := range s.Machines {
+		if machine.ID == e.MachineID {
+			machineName = machine.Name
+			break
+		}
+	}
+
 	// Collect rows
 	rows := [][]string{
 		{"Name", e.Name},
 		{"Description", strings.TrimSpace(e.Description)},
 		{"Status", statusVal},
+		{"Machine", machineName},
 		{"Server", e.Server},
 		{"User", e.User},
 		{"KeyFile", e.KeyFile},

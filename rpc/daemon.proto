@@ -30,6 +30,26 @@ service DaemonService {
   rpc ListActiveTunnels (ListActiveTunnelsRequest) returns (ListActiveTunnelsResponse) {}
 
   rpc ListActiveTunnelsJSON (ListActiveTunnelsJSONRequest) returns (ListActiveTunnelsJSONResponse) {}
+
+  rpc ListMachines (ListMachinesRequest) returns (ListMachinesResponse) {}
+
+  rpc GetMachine (GetMachineRequest) returns (GetMachineResponse) {}
+
+  rpc AddMachine (MachineMutationRequest) returns (MachineMutationResponse) {}
+
+  rpc UpdateMachine (MachineMutationRequest) returns (MachineMutationResponse) {}
+
+  rpc DeleteMachine (DeleteMachineRequest) returns (MachineMutationResponse) {}
+
+  rpc ListTunnelProfiles (ListTunnelProfilesRequest) returns (ListTunnelProfilesResponse) {}
+
+  rpc GetTunnelProfile (GetTunnelProfileRequest) returns (GetTunnelProfileResponse) {}
+
+  rpc AddTunnelProfile (TunnelProfileMutationRequest) returns (TunnelProfileMutationResponse) {}
+
+  rpc UpdateTunnelProfile (TunnelProfileMutationRequest) returns (TunnelProfileMutationResponse) {}
+
+  rpc DeleteTunnelProfile (DeleteTunnelProfileRequest) returns (TunnelProfileMutationResponse) {}
 }
 
 message TunnelConfig {
@@ -43,9 +63,94 @@ message TunnelConfig {
   int32 local_port = 8;
 }
 
+message Machine {
+  string id = 1;
+  string name = 2;
+  string server = 3;
+  string user = 4;
+  string key_file = 5;
+}
+
+message TunnelProfile {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string machine_id = 4;
+  string remote_host = 5;
+  int32 remote_port = 6;
+  int32 local_port = 7;
+  optional Machine machine = 8;
+}
+
 enum ResponseStatus {
   Success = 0;
   Error = 1;
+}
+
+message ListMachinesRequest {}
+
+message ListMachinesResponse {
+  ResponseStatus status = 1;
+  string message = 2;
+  repeated Machine machines = 3;
+}
+
+message GetMachineRequest {
+  string id = 1;
+}
+
+message GetMachineResponse {
+  ResponseStatus status = 1;
+  string message = 2;
+  Machine data = 3;
+}
+
+message MachineMutationRequest {
+  string id = 1;
+  Machine data = 2;
+}
+
+message MachineMutationResponse {
+  ResponseStatus status = 1;
+  string message = 2;
+  Machine data = 3;
+}
+
+message DeleteMachineRequest {
+  string id = 1;
+}
+
+message ListTunnelProfilesRequest {}
+
+message ListTunnelProfilesResponse {
+  ResponseStatus status = 1;
+  string message = 2;
+  repeated TunnelProfile tunnel_profiles = 3;
+}
+
+message GetTunnelProfileRequest {
+  string id = 1;
+}
+
+message GetTunnelProfileResponse {
+  ResponseStatus status = 1;
+  string message = 2;
+  TunnelProfile data = 3;
+}
+
+message TunnelProfileMutationRequest {
+  string id = 1;
+  TunnelProfile data = 2;
+}
+
+message TunnelProfileMutationResponse {
+  ResponseStatus status = 1;
+  string message = 2;
+  TunnelProfile data = 3;
+}
+
+message DeleteTunnelProfileRequest {
+  string id = 1;
 }
 
 message ListConfigurationsRequest {

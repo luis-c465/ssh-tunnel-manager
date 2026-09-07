@@ -44,12 +44,15 @@ sudo dpkg -i ../sshtm_1.1.5-1_amd64.deb
 ## Quick start
 
 ```sh
+sshtm machine add my_server --server example.com --user alice --key-file ~/.ssh/id_ed25519
 sshtm add
 sshtm list
 sshtm tunnel my_configuration
 sshtm active
 sshtm kill my_configuration
 ```
+
+A machine stores reusable SSH connection details. A tunnel profile stores a port-forwarding configuration and references a machine. Create a machine first; `sshtm add` creates a tunnel profile and prompts you to select an existing machine.
 
 ## Commands
 
@@ -59,10 +62,14 @@ sshtm [command]
 
 | Command | Aliases | Description |
 | --- | --- | --- |
-| `list [search pattern]` | `ls`, `l` | List saved tunnel configurations. |
-| `add` | `a` | Add a configuration interactively. |
-| `edit` | `e` | Edit a configuration. |
-| `delete` | `del`, `d` | Delete a configuration. |
+| `list [search pattern]` | `ls`, `l` | List saved tunnel profiles. |
+| `add` | `a` | Add a tunnel profile interactively. |
+| `edit` | `e` | Edit a tunnel profile. |
+| `delete` | `del`, `d` | Delete a tunnel profile. |
+| `machine list` | | List SSH machines. |
+| `machine add <name> --server <address> --user <user> --key-file <path>` | | Add an SSH machine. |
+| `machine edit <name>` | | Edit an SSH machine. |
+| `machine delete <name>` | | Delete an SSH machine. |
 | `tunnel <configuration name> [local port]` | `t` | Start a saved tunnel. |
 | `active` | | List active tunnels. |
 | `kill <configuration name\|local port>` | `k`, `terminate` | Terminate an active tunnel. |
@@ -78,6 +85,8 @@ SSHTM_CONFIG_DIR=/path/to/config sshtm list
 ```
 
 The legacy `config-dir` environment variable remains supported for compatibility. `SSHTM_CONFIG_DIR` takes precedence when both are set.
+
+Old flat JSON configurations are migrated automatically and retained. New machine and tunnel-profile data is stored in `machines/` and `profiles/` under the configuration directory.
 
 ## Development
 

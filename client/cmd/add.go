@@ -3,10 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
-	"github.com/besrabasant/ssh-tunnel-manager/client/formatters"
 	"github.com/besrabasant/ssh-tunnel-manager/client/lib"
 	"github.com/besrabasant/ssh-tunnel-manager/rpc"
 	"github.com/rivo/tview"
@@ -16,18 +14,12 @@ import (
 var AddConfigurationsCmd = &cobra.Command{
 	Use:     "add",
 	Aliases: []string{"a"},
-	Short:   "Add a new SSH tunnel configuration",
+	Short:   "Add a new SSH tunnel profile",
 	Long: `
-Add a new SSH tunnel configuration using an interactive form.
+Add a tunnel profile using an interactive form.
 
-This command launches an interactive GUI form that allows you to enter details for a new SSH tunnel configuration, such as the SSH server address, local and remote ports, and any other required tunnel parameters. Once the form is submitted, the configuration is saved, enabling you to use this setup for future SSH tunnel initiations.
-
-The form supports mouse interactions and clipboard operations, enhancing ease of use and efficiency. Use this command to configure new tunnels without manually editing configuration files or directly manipulating database entries.
-
-Features:
-- Interactive form with field validations to guide you through the setup process.
-- Mouse and clipboard support for a better user experience.
-- Immediate feedback on the success or failure of the configuration addition.
+The profile references an existing SSH machine and stores only its forwarding
+settings. Create a machine with "sshtm machine add" before adding a profile.
 
 Examples:
 - sshtm add
@@ -41,36 +33,58 @@ Examples:
 		}
 		defer cleanup()
 
-		data := rpc.TunnelConfig{}
+		listCtx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+		machinesResponse, err := c.ListMachines(listCtx, &rpc.ListMachinesRequest{})
+		cancel()
+		if err != nil {
+			return fmt.Errorf("list machines: %w", err)
+		}
+		if machinesResponse == nil {
+			return fmt.Errorf("list machines: empty response")
+		}
+		if machinesResponse.GetStatus() == rpc.ResponseStatus_Error {
+			return responseError("list machines", machinesResponse.GetMessage())
+		}
+		machines := nonNilMachines(machinesResponse.GetMachines())
+		if len(machines) == 0 {
+			return fmt.Errorf("no machines available; run `sshtm machine add` first")
+		}
 
+		data := rpc.TunnelProfile{}
 		app := tview.NewApplication()
-
 		formConfig := lib.ConfigurationFormData{
-			Title:             "Add configuration",
+			Title:             "Add tunnel profile",
 			PrimaryBtnLabel:   "Add",
 			SecondaryBtnLabel: "Cancel",
 		}
 
 		var callbackErr error
-		addForm := lib.ConfigurationForm(formConfig, app, &data, func(data *rpc.TunnelConfig) {
+		addForm := lib.TunnelProfileForm(formConfig, app, &data, machines, func(data *rpc.TunnelProfile) {
 			addCtx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 			defer cancel()
 
-			r, err := c.AddConfiguration(addCtx, &rpc.AddOrUpdateConfigurationRequest{Name: data.Name, Data: data})
+			r, err := c.AddTunnelProfile(addCtx, &rpc.TunnelProfileMutationRequest{Data: data})
 			if err != nil {
-				callbackErr = fmt.Errorf("add configuration: %w", err)
+				callbackErr = fmt.Errorf("add tunnel profile: %w", err)
+				return
+			}
+			if r == nil {
+				callbackErr = fmt.Errorf("add tunnel profile: empty response")
 				return
 			}
 			if r.GetStatus() == rpc.ResponseStatus_Error {
-				callbackErr = fmt.Errorf("add configuration: %s", r.GetMessage())
+				callbackErr = responseError("add tunnel profile", r.GetMessage())
 				return
 			}
-
-			fmt.Print(formatters.NewMutationFormatter(os.Stdout).Format(formatters.MutationFromAddOrUpdate(r)))
+			if r.GetMessage() != "" {
+				fmt.Fprintln(cmd.OutOrStdout(), r.GetMessage())
+			} else {
+				fmt.Fprintf(cmd.OutOrStdout(), "Tunnel profile %q added.\n", data.GetName())
+			}
 		})
 
 		if err := app.SetRoot(addForm, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
-			return fmt.Errorf("run add configuration form: %w", err)
+			return fmt.Errorf("run add tunnel profile form: %w", err)
 		}
 		return callbackErr
 	},

@@ -1,6 +1,7 @@
 package tunnelmanager
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sync"
@@ -83,6 +84,79 @@ func TestSaveActiveTunnelsUsesPrivatePermissions(t *testing.T) {
 	}
 	if got := info.Mode().Perm(); got != 0600 {
 		t.Fatalf("active tunnel permissions = %o, want 600", got)
+	}
+}
+
+func TestSaveAndLoadActiveTunnelsPersistProfileAndMachineIDs(t *testing.T) {
+	manager := NewTunnelManager().(*tunnelManager)
+	manager.RegisterConnection(1234, &ConnectionInfo{Config: configmanager.Entry{ID: "profile-1", MachineID: "machine-1", Name: "test"}})
+	path := filepath.Join(t.TempDir(), "active.json")
+
+	if err := manager.SaveActiveTunnels(path); err != nil {
+		t.Fatal(err)
+	}
+	tunnels, err := LoadActiveTunnels(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tunnels) != 1 {
+		t.Fatalf("loaded %d tunnels, want 1", len(tunnels))
+	}
+	if got := tunnels[0]; got.ProfileID != "profile-1" || got.MachineID != "machine-1" || got.ConfigName != "test" {
+		t.Fatalf("loaded tunnel = %+v, want profile and machine IDs with config name", got)
+	}
+}
+
+func TestLoadActiveTunnelsSupportsLegacyConfigName(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "active.json")
+	if err := os.WriteFile(path, []byte(`[{"config_name":"legacy","local_port":1234}]`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	tunnels, err := LoadActiveTunnels(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tunnels) != 1 || tunnels[0].ConfigName != "legacy" || tunnels[0].ProfileID != "" || tunnels[0].MachineID != "" {
+		t.Fatalf("loaded legacy tunnel = %+v, want config name only", tunnels)
+	}
+}
+
+func TestStartTunnelResolvesProfileIDAndFallsBackToName(t *testing.T) {
+	configDir := t.TempDir()
+	cfgMgr := configmanager.NewManager(configDir)
+	entry := configmanager.Entry{Name: "test", Server: "server:22", User: "user", KeyFile: "key", RemoteHost: "remote", RemotePort: 22, LocalPort: 1234}
+	if err := cfgMgr.AddConfiguration(entry); err != nil {
+		t.Fatal(err)
+	}
+	entry, err := cfgMgr.GetConfiguration(entry.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewTunnelManager()
+	manager.RegisterConnection(1234, &ConnectionInfo{})
+	service := NewTunnelService(manager, cfgMgr, configDir)
+	for _, identifier := range []string{entry.ID, entry.Name} {
+		output, err := service.StartTunnel(context.Background(), identifier, -1)
+		if err != nil {
+			t.Fatalf("StartTunnel(%q): %v", identifier, err)
+		}
+		if output == "" {
+			t.Fatalf("StartTunnel(%q) did not resolve configuration", identifier)
+		}
+	}
+}
+
+func TestStopTunnelMatchesProfileID(t *testing.T) {
+	manager := NewTunnelManager()
+	manager.RegisterConnection(1234, &ConnectionInfo{Config: configmanager.Entry{ID: "profile-1", Name: "test"}})
+	service := NewTunnelService(manager, nil, "")
+
+	if _, err := service.StopTunnel(context.Background(), "profile-1", 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, found := manager.GetConnection(1234); found {
+		t.Fatal("connection was not stopped by profile ID")
 	}
 }
 
