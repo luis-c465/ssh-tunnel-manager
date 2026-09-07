@@ -1,4 +1,7 @@
 tmp
+/bin/
+/dist/
+coverage.out
 /sshtmd
 /sshtm
 /pb

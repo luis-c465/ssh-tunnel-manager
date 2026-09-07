@@ -14,19 +14,19 @@ service DaemonService {
   rpc AddConfigurationJSON (AddOrUpdateConfigurationRequest) returns (MutationResponse) {}
 
   rpc UpdateConfiguration (AddOrUpdateConfigurationRequest) returns (AddOrUpdateConfigurationResponse) {}
-  
+
   rpc UpdateConfigurationJSON (AddOrUpdateConfigurationRequest) returns (MutationResponse) {}
 
   rpc FetchConfiguration (FetchConfigurationRequest) returns (FetchConfigurationResponse) {}
-  
+
   rpc DeleteConfiguration (DeleteConfigurationRequest) returns (DeleteConfigurationResponse) {}
 
   rpc DeleteConfigurationJSON (DeleteConfigurationRequest) returns (MutationResponse) {}
 
   rpc StartTunnel (StartTunnelRequest) returns (StartTunnelResponse) {}
-  
+
   rpc KillTunnel (KillTunnelRequest) returns (KillTunnelResponse) {}
-  
+
   rpc ListActiveTunnels (ListActiveTunnelsRequest) returns (ListActiveTunnelsResponse) {}
 
   rpc ListActiveTunnelsJSON (ListActiveTunnelsJSONRequest) returns (ListActiveTunnelsJSONResponse) {}
@@ -81,7 +81,6 @@ message AddOrUpdateConfigurationResponse {
   TunnelConfig data = 4;
 }
 
-
 message FetchConfigurationRequest {
   string name = 1;
 }
@@ -102,7 +101,6 @@ message DeleteConfigurationResponse {
   string message = 3;
 }
 
-
 message StartTunnelRequest {
   string config_name = 1;
   int32 local_port = 2;
@@ -115,8 +113,7 @@ message StartTunnelResponse {
   repeated string events = 4;
 }
 
-message ListActiveTunnelsRequest {
-}
+message ListActiveTunnelsRequest {}
 
 message ListActiveTunnelsResponse {
   string result = 1;

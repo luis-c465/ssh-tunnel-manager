@@ -18,7 +18,6 @@ case "$version" in
 esac
 
 perl -0pi -e 's/var AppVersion = "[^"]+"/var AppVersion = "'"$version"'"/' config/config.go
-perl -0pi -e 's/\*\*SSH Tunnel Manager \(sshtm\) v[^*]+\*\*/**SSH Tunnel Manager (sshtm) v'"$version"'**/' README.md
 perl -0pi -e 's/sshtm_[0-9]+\.[0-9]+\.[0-9]+-1_amd64\.deb/sshtm_'"$version"'-1_amd64.deb/g' README.md
 perl -0pi -e 's/^pkgver=.*/pkgver='"$version"'/m' packaging/arch/PKGBUILD
 if [ -f packaging/arch/.SRCINFO ]; then

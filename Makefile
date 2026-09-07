@@ -1,4 +1,6 @@
 GO_CMD := go
+BIN_DIR ?= bin
+DIST_DIR ?= dist
 GOPROXY ?= https://proxy.golang.org,direct
 export GOPROXY
 
@@ -32,6 +34,7 @@ test-race:
 
 coverage:
 	$(GO_CMD) test -coverprofile=coverage.out ./...
+	$(GO_CMD) tool cover -func=coverage.out
 
 vet:
 	$(GO_CMD) vet ./...
@@ -40,25 +43,28 @@ check: fmt-check vet test test-race build proto-check
 
 build: build-daemon build-client
 
-build-daemon:
-	$(GO_CMD) build $(LDFLAGS) -o sshtmd ./daemon
+build-daemon: | $(BIN_DIR)
+	$(GO_CMD) build $(LDFLAGS) -o $(BIN_DIR)/sshtmd ./daemon
 
-build-client:
-	$(GO_CMD) build $(LDFLAGS) -o sshtm ./client
+build-client: | $(BIN_DIR)
+	$(GO_CMD) build $(LDFLAGS) -o $(BIN_DIR)/sshtm ./client
 
-build-linux:
-	GOOS=linux GOARCH=amd64 $(GO_CMD) build $(LDFLAGS) -o sshtmd-linux-amd64 ./daemon
-	GOOS=linux GOARCH=amd64 $(GO_CMD) build $(LDFLAGS) -o sshtm-linux-amd64 ./client
-	GOOS=linux GOARCH=arm64 $(GO_CMD) build $(LDFLAGS) -o sshtmd-linux-arm64 ./daemon
-	GOOS=linux GOARCH=arm64 $(GO_CMD) build $(LDFLAGS) -o sshtm-linux-arm64 ./client
+build-linux: | $(DIST_DIR)
+	GOOS=linux GOARCH=amd64 $(GO_CMD) build $(LDFLAGS) -o $(DIST_DIR)/sshtmd-linux-amd64 ./daemon
+	GOOS=linux GOARCH=amd64 $(GO_CMD) build $(LDFLAGS) -o $(DIST_DIR)/sshtm-linux-amd64 ./client
+	GOOS=linux GOARCH=arm64 $(GO_CMD) build $(LDFLAGS) -o $(DIST_DIR)/sshtmd-linux-arm64 ./daemon
+	GOOS=linux GOARCH=arm64 $(GO_CMD) build $(LDFLAGS) -o $(DIST_DIR)/sshtm-linux-arm64 ./client
 
-build-macos:
-	GOOS=darwin GOARCH=amd64 $(GO_CMD) build $(LDFLAGS) -o sshtmd-darwin-amd64 ./daemon
-	GOOS=darwin GOARCH=amd64 $(GO_CMD) build $(LDFLAGS) -o sshtm-darwin-amd64 ./client
-	GOOS=darwin GOARCH=arm64 $(GO_CMD) build $(LDFLAGS) -o sshtmd-darwin-arm64 ./daemon
-	GOOS=darwin GOARCH=arm64 $(GO_CMD) build $(LDFLAGS) -o sshtm-darwin-arm64 ./client
+build-macos: | $(DIST_DIR)
+	GOOS=darwin GOARCH=amd64 $(GO_CMD) build $(LDFLAGS) -o $(DIST_DIR)/sshtmd-darwin-amd64 ./daemon
+	GOOS=darwin GOARCH=amd64 $(GO_CMD) build $(LDFLAGS) -o $(DIST_DIR)/sshtm-darwin-amd64 ./client
+	GOOS=darwin GOARCH=arm64 $(GO_CMD) build $(LDFLAGS) -o $(DIST_DIR)/sshtmd-darwin-arm64 ./daemon
+	GOOS=darwin GOARCH=arm64 $(GO_CMD) build $(LDFLAGS) -o $(DIST_DIR)/sshtm-darwin-arm64 ./client
 
 build-all: build-linux build-macos
+
+$(BIN_DIR) $(DIST_DIR):
+	mkdir -p $@
 
 download-deps:
 	$(GO_CMD) mod download
@@ -75,7 +81,8 @@ proto:
 	PATH="$(GOBIN):$$PATH" $(PROTOC) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative $(PROTO_FILE)
 
 proto-check:
-	@command -v $(PROTOC) >/dev/null || (echo "protoc is required" >&2; exit 1)
+	@command -v $(PROTOC) >/dev/null || (echo "protoc is required; install protobuf compiler $(PROTOC_VERSION)" >&2; exit 1)
+	@actual="$$($(PROTOC) --version | awk '{print $$2}')"; test "$$actual" = "$(PROTOC_VERSION)" || (echo "protoc $(PROTOC_VERSION) is required (found $$actual)" >&2; exit 1)
 	@PATH="$(GOBIN):$$PATH"; export PATH; command -v protoc-gen-go >/dev/null && command -v protoc-gen-go-grpc >/dev/null || (echo "protobuf generators are required; run 'make proto-tools'" >&2; exit 1)
 	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
 		PATH="$(GOBIN):$$PATH" $(PROTOC) --go_out="$$tmp" --go_opt=paths=source_relative --go-grpc_out="$$tmp" --go-grpc_opt=paths=source_relative $(PROTO_FILE); \
@@ -95,7 +102,7 @@ build_macos: build-macos
 build_all: build-all
 
 clean:
-	rm -f sshtmd sshtm sshtmd-linux-amd64 sshtm-linux-amd64 sshtmd-linux-arm64 sshtm-linux-arm64 sshtmd-darwin-amd64 sshtm-darwin-amd64 sshtmd-darwin-arm64 sshtm-darwin-arm64 coverage.out
+	rm -rf $(BIN_DIR) $(DIST_DIR) coverage.out
 
 help:
 	@echo "Usage:"
@@ -103,11 +110,13 @@ help:
 	@echo "  make fmt-check      Verify Go formatting"
 	@echo "  make test           Run tests"
 	@echo "  make test-race      Run tests with the race detector"
-	@echo "  make coverage       Write test coverage to coverage.out"
+	@echo "  make coverage       Write coverage.out and report coverage"
 	@echo "  make vet            Run go vet"
 	@echo "  make check          Run formatting, vet, tests, builds, and protobuf freshness checks"
 	@echo "  make proto-tools    Install pinned protobuf Go generators"
 	@echo "  make proto          Regenerate committed protobuf Go files"
 	@echo "  make proto-check    Verify committed protobuf Go files are current"
-	@echo "  make build          Build daemon and CLI"
-	@echo "  make VERSION=1.2.3 build-all  Build cross-platform binaries with an explicit app version"
+	@echo "  make build          Build daemon and CLI under ./$(BIN_DIR)"
+	@echo "  make VERSION=1.2.3 build-all  Build cross-platform binaries under ./$(DIST_DIR)"
+	@echo "  BIN_DIR=path make build       Override the local build output directory"
+	@echo "  DIST_DIR=path make build-all  Override the cross-platform output directory"

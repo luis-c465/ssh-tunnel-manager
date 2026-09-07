@@ -1,29 +1,15 @@
 # SSH Tunnel Manager (`sshtm`)
 
-SSH Tunnel Manager (**sshtm**) is a CLI and background daemon for saving, starting, listing, and stopping SSH local port-forwarding tunnels. It is useful when you frequently connect to the same private services through SSH and want reusable tunnel profiles instead of typing long `ssh -L` commands.
-
-Current version: **v1.1.5**
-
-## What it does
-
-- Manages reusable SSH tunnel configurations with names and descriptions.
-- Starts tunnels from saved configurations, equivalent to:
-  ```sh
-  ssh -L [LOCAL_IP:]LOCAL_PORT:DESTINATION:DESTINATION_PORT [USER@]SSH_SERVER
-  ```
-- Runs through a background daemon (`sshtmd`) that the CLI (`sshtm`) communicates with over gRPC.
+SSH Tunnel Manager provides a CLI and background daemon for saving, starting, listing, and stopping SSH local port-forwarding tunnels.
 
 ## Requirements
 
-- **Go 1.25 or later** for building from source.
-- **Git** for cloning the repository.
-- A populated `~/.ssh/known_hosts` entry for each SSH server. Connect once with `ssh` or use `ssh-keyscan` before starting a tunnel; unknown or changed host keys are rejected.
-- **systemd user services** on Linux or **LaunchAgents** on macOS for the installed daemon service.
-- **Air** *(optional)* for live reload during development.
+- Go 1.25 or later for source builds
+- Git
+- A populated `~/.ssh/known_hosts` entry for each SSH server
+- Protocol Buffers compiler 35.0 for protobuf development
 
 ## Installation
-
-### Build from source
 
 ```sh
 git clone https://github.com/besrabasant/ssh-tunnel-manager.git
@@ -31,37 +17,17 @@ cd ssh-tunnel-manager
 ./install.sh
 ```
 
-The install script builds the daemon and CLI for your OS/architecture, then installs them under `~/.local/bin`.
+The install script installs `sshtm` and `sshtmd` under `~/.local/bin`, configuration under `~/.ssh-tunnel-manager`, and helper scripts under `~/.local/share/sshtm/scripts`. It also installs a systemd user service on Linux or a LaunchAgent on macOS.
 
-Installed paths:
-
-| Purpose | Path |
-| --- | --- |
-| CLI binary | `~/.local/bin/sshtm` |
-| Daemon binary | `~/.local/bin/sshtmd` |
-| Data/config directory | `~/.ssh-tunnel-manager` |
-| Helper scripts | `~/.local/share/sshtm/scripts` |
-
-Service behavior:
-
-- **Linux**: installs and starts a systemd user unit for `sshtmd`.
-- **macOS**: installs and starts a LaunchAgent for `sshtmd`.
-
-Make sure `~/.local/bin` is on your `PATH` after installation.
+Ensure `~/.local/bin` is on your `PATH`.
 
 ### Arch Linux (AUR)
-
-If you use `yay`, install directly from the AUR:
 
 ```sh
 yay -S sshtm
 ```
 
-You can also build the package manually with `makepkg` inside `packaging/arch`.
-
 ### Debian/Ubuntu package build
-
-Build a Debian package using the files in `packaging/debian`:
 
 ```sh
 cd packaging/debian
@@ -71,59 +37,19 @@ sudo dpkg -i ../sshtm_1.1.5-1_amd64.deb
 
 ## Uninstallation
 
-If installed from source, run:
-
 ```sh
 ~/.local/share/sshtm/scripts/uninstall.sh
 ```
 
 ## Quick start
 
-1. Add a tunnel configuration interactively:
-   ```sh
-   sshtm add
-   ```
-
-2. List saved configurations:
-   ```sh
-   sshtm list
-   ```
-
-3. Start a saved tunnel:
-   ```sh
-   sshtm tunnel my_configuration
-   ```
-
-4. Start a saved tunnel with an explicit local port:
-   ```sh
-   sshtm tunnel my_configuration 8080
-   ```
-
-5. View active tunnels:
-   ```sh
-   sshtm active
-   ```
-
-6. Stop a tunnel by name or local port:
-   ```sh
-   sshtm kill my_configuration
-   sshtm kill 8080
-   ```
-
-## Configuration fields
-
-When adding or editing a tunnel, `sshtm` stores these fields:
-
-| Field | Description |
-| --- | --- |
-| `name` | Unique name for the tunnel configuration. |
-| `description` | Human-readable notes about the tunnel. |
-| `server` | SSH server or jump host. |
-| `user` | SSH username. |
-| `key_file` | Private key file used for authentication. |
-| `remote_host` | Destination host reached from the SSH server. |
-| `remote_port` | Destination port on the remote host. |
-| `local_port` | Local port to bind when starting the tunnel. |
+```sh
+sshtm add
+sshtm list
+sshtm tunnel my_configuration
+sshtm active
+sshtm kill my_configuration
+```
 
 ## Commands
 
@@ -133,34 +59,35 @@ sshtm [command]
 
 | Command | Aliases | Description |
 | --- | --- | --- |
-| `list [search pattern]` | `ls`, `l` | List saved SSH tunnel configurations, optionally filtered with fuzzy search. |
-| `add` | `a` | Add a new SSH tunnel configuration using an interactive form. |
-| `edit` | `e` | Edit an existing SSH tunnel configuration. |
-| `delete` | `del`, `d` | Delete an existing SSH tunnel configuration. |
-| `tunnel <configuration name> [local port]` | `t` | Start an SSH tunnel from a saved configuration, optionally overriding the local port. |
-| `active` | | List active SSH tunnels. |
-| `kill <configuration name or local port>` | `k`, `terminate` | Terminate an active SSH tunnel. |
-| `completion` | | Generate shell completion scripts. |
-| `version` | | Print the version number. |
-| `help [command]` | | Show command help. |
+| `list [search pattern]` | `ls`, `l` | List saved tunnel configurations. |
+| `add` | `a` | Add a configuration interactively. |
+| `edit` | `e` | Edit a configuration. |
+| `delete` | `del`, `d` | Delete a configuration. |
+| `tunnel <configuration name> [local port]` | `t` | Start a saved tunnel. |
+| `active` | | List active tunnels. |
+| `kill <configuration name\|local port>` | `k`, `terminate` | Terminate an active tunnel. |
+| `completion` | | Generate shell completions. |
+| `version` | | Print the version. |
 
-Use `sshtm help <command>` for command-specific details.
+## Configuration directory
+
+Set `SSHTM_CONFIG_DIR` to use a different configuration directory:
+
+```sh
+SSHTM_CONFIG_DIR=/path/to/config sshtm list
+```
+
+The legacy `config-dir` environment variable remains supported for compatibility. `SSHTM_CONFIG_DIR` takes precedence when both are set.
 
 ## Development
 
-### Prerequisites
-
-Development requires Go 1.25+, Git, and [Protocol Buffers compiler 35.0](https://github.com/protocolbuffers/protobuf/releases/tag/v35.0). Install the pinned Go protobuf generators once:
+Install the pinned protobuf Go generators once:
 
 ```sh
 make proto-tools
 ```
 
-[Air](https://github.com/air-verse/air) is optional for live reload.
-
-### Canonical development loop
-
-Regenerate protobuf code after editing `rpc/daemon.proto`, format changes, and run the full local gate:
+After editing `rpc/daemon.proto`, regenerate generated code. Format and run the full local check before submitting changes:
 
 ```sh
 make proto
@@ -168,45 +95,46 @@ make fmt
 make check
 ```
 
-`make check` verifies formatting, runs `go vet`, normal and race-detector tests, builds both binaries, and confirms the committed generated protobuf files are current. Use `make coverage` to write `coverage.out`.
+`make check` runs formatting checks, `go vet`, normal and race-detector tests, builds, and protobuf freshness checks. `make coverage` writes `coverage.out` and reports coverage for each tested package.
 
-Start the daemon with live reload using `air`, or run the CLI directly:
+Build local binaries:
+
+```sh
+make build
+```
+
+This writes `sshtm` and `sshtmd` to `./bin`. Build all supported release binaries with:
+
+```sh
+make VERSION=1.1.5 build-all
+```
+
+This writes Linux and macOS binaries to `./dist`. Override the output directories when needed:
+
+```sh
+BIN_DIR=/tmp/sshtm-bin make build
+DIST_DIR=/tmp/sshtm-dist make build-all
+```
+
+Use `air` for optional daemon live reload, or run the CLI directly:
 
 ```sh
 cd client
 go run main.go list
 ```
 
-### Build locally
-
-```sh
-make build
-```
-
-This creates `./sshtmd` (daemon) and `./sshtm` (CLI). For release builds:
-
-```sh
-make build-linux   # linux/amd64 + linux/arm64
-make build-macos   # darwin/amd64 + arm64
-make VERSION=1.1.5 build-all
-```
-
 ## Project layout
 
 ```text
-client/      CLI commands, terminal forms, and daemon client helpers
-daemon/      Background daemon and gRPC server task handlers
+client/      CLI commands and terminal UI
+daemon/      Background daemon and gRPC server
 pkg/         Reusable configuration and tunnel-management packages
 rpc/         Protobuf definitions and generated gRPC code
 config/      Application constants and version metadata
 packaging/   Arch Linux and Debian packaging files
-scripts/     Install/uninstall helper scripts
+scripts/     Install and uninstall helpers
 utils/       Shared utility helpers
 ```
-
-## Versioning policy
-
-This project uses [Semantic Versioning](https://semver.org/) for version numbers.
 
 ## License
 

@@ -28,17 +28,5 @@ jobs:
       - name: Install protobuf generators
         run: make proto-tools
 
-      - name: Check formatting
-        run: make fmt-check
-
-      - name: Vet
-        run: make vet
-
-      - name: Test with race detector
-        run: make test-race
-
-      - name: Build
-        run: make build
-
-      - name: Check generated protobuf files
-        run: make proto-check
+      - name: Run checks
+        run: make check

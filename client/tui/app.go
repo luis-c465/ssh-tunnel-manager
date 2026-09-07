@@ -12,7 +12,7 @@ func Run() error {
 	s := NewState()
 	applyTheme(s)
 
-	dir, err := utils.ResolveDir(config.DefaultConfigDir)
+	dir, err := utils.ResolveDir(config.ConfigurationDir())
 	if err != nil {
 		return fmt.Errorf("resolve config dir: %w", err)
 	}

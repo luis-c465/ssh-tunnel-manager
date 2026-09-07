@@ -69,19 +69,19 @@ jobs:
         run: |
           VERSION="${TAG_NAME#v}"
           make VERSION="$VERSION" build-all
-          sha256sum sshtm-* sshtmd-* > checksums.txt
+          sha256sum dist/sshtm-* dist/sshtmd-* > checksums.txt
 
       - name: Upload release binaries
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            sshtm-linux-amd64
-            sshtmd-linux-amd64
-            sshtm-linux-arm64
-            sshtmd-linux-arm64
-            sshtm-darwin-amd64
-            sshtmd-darwin-amd64
-            sshtm-darwin-arm64
-            sshtmd-darwin-arm64
+            dist/sshtm-linux-amd64
+            dist/sshtmd-linux-amd64
+            dist/sshtm-linux-arm64
+            dist/sshtmd-linux-arm64
+            dist/sshtm-darwin-amd64
+            dist/sshtmd-darwin-amd64
+            dist/sshtm-darwin-arm64
+            dist/sshtmd-darwin-arm64
             checksums.txt
