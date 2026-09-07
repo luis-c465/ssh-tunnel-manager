@@ -266,7 +266,7 @@ func buildOneOffTunnelForm() (*tview.Form, func() (string, int, int, error)) {
 	form.SetItemPadding(1)
 	remoteHost := tview.NewInputField().SetLabel("LocalHost (optional)")
 	remotePort := tview.NewInputField().SetLabel("RemotePort")
-	localPort := tview.NewInputField().SetLabel("LocalPort (0=auto)")
+	localPort := tview.NewInputField().SetLabel("LocalPort (blank=remote, 0=auto)")
 	for _, item := range []tview.FormItem{remoteHost, remotePort, localPort} {
 		form.AddFormItem(item)
 	}
@@ -277,7 +277,8 @@ func buildOneOffTunnelForm() (*tview.Form, func() (string, int, int, error)) {
 		if err != nil || remotePortValue < 1 || remotePortValue > 65535 {
 			return "", 0, 0, fmt.Errorf("remote port must be between 1 and 65535")
 		}
-		localPortValue := 0
+		// A blank local port mirrors the remote port; explicit 0 requests auto-allocation.
+		localPortValue := remotePortValue
 		if value := strings.TrimSpace(localPort.GetText()); value != "" {
 			localPortValue, err = strconv.Atoi(value)
 			if err != nil || localPortValue < 0 || localPortValue > 65535 {

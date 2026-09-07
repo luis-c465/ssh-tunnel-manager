@@ -75,7 +75,8 @@ func newMachineTunnelCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			localPort := 0
+			// A missing local port mirrors the remote port; explicit 0 requests auto-allocation.
+			localPort := remotePort
 			if len(args) == 3 {
 				localPort, err = parseOneOffPort("local port", args[2], true)
 				if err != nil {

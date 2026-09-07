@@ -64,7 +64,7 @@ func TestOneOffTunnelFormPreservesEmptyLocalHost(t *testing.T) {
 	if localHost != "" {
 		t.Fatalf("local host = %q, want empty", localHost)
 	}
-	if remotePort != 5432 || localPort != 0 {
-		t.Fatalf("tunnel = (%d, %d), want (5432, 0)", remotePort, localPort)
+	if remotePort != 5432 || localPort != 5432 {
+		t.Fatalf("tunnel = (%d, %d), want (5432, 5432)", remotePort, localPort)
 	}
 }
