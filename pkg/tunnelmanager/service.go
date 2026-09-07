@@ -72,7 +72,7 @@ func (s *tunnelService) StartOneOffTunnel(ctx context.Context, machineID, remote
 	}
 	entry := configmanager.Entry{
 		MachineID:  machine.ID,
-		Name:       fmt.Sprintf("one-off on %s", machine.Name),
+		Name:       oneOffTunnelName(machine.Name, remoteHost, int(remotePort), int(localPort)),
 		Server:     machine.Server,
 		User:       machine.User,
 		KeyFile:    machine.KeyFile,
@@ -82,6 +82,18 @@ func (s *tunnelService) StartOneOffTunnel(ctx context.Context, machineID, remote
 		Ephemeral:  true,
 	}
 	return s.startEntry(ctx, entry, localPort, false)
+}
+
+func oneOffTunnelName(machine, host string, remotePort, localPort int) string {
+	parts := []string{machine}
+	if host != "localhost" {
+		parts = append(parts, host)
+	}
+	name := fmt.Sprintf("%s: %d", strings.Join(parts, ": "), remotePort)
+	if localPort != remotePort {
+		name += fmt.Sprintf("->%d", localPort)
+	}
+	return name
 }
 
 func (s *tunnelService) startEntry(ctx context.Context, cfg configmanager.Entry, actualPort int32, persist bool) (string, error) {
